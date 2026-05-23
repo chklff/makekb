@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================================
+   Make Scenarios KB — design tokens
+   Make brand override of UI-Recommendations color palette.
+   See DECISIONS.md for the rationale.
+   ===================================================================== */
+
+@layer base {
+  :root {
+    /* Make brand */
+    --make-purple: 264 79% 51%;        /* #6C1FE5 */
+    --make-pink:   327 100% 56%;       /* #FF1F8E */
+    --make-black:  0 0% 5%;            /* #0D0D0D */
+    --make-sand:   38 35% 94%;         /* #F5F0E8 */
+    --make-pink-tint: 333 100% 95%;    /* #FFE8F4 */
+
+    /* shadcn semantic tokens — wired to Make brand */
+    --background: 38 35% 94%;          /* sand — the default canvas */
+    --foreground: 0 0% 5%;             /* make-black on sand */
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 5%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 5%;
+
+    --primary: 264 79% 51%;            /* make-purple */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 38 25% 90%;           /* slightly darker sand */
+    --secondary-foreground: 0 0% 5%;
+
+    --muted: 38 20% 88%;
+    --muted-foreground: 0 0% 35%;
+
+    --accent: 327 100% 95%;            /* pink tint for AI panels */
+    --accent-foreground: 264 79% 51%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 264 79% 51% / 0.12;      /* used as `border` color; resolve via opacity */
+    --input: 264 30% 88%;
+    --ring: 264 79% 51%;
+
+    --radius: 0.75rem;
+
+    /* Match-score ramp & semantic */
+    --success: 142 71% 38%;
+    --warning: 35 95% 55%;
+    --danger:  0 84% 60%;
+  }
+
+  .dark {
+    --background: 0 0% 5%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 264 79% 65%;
+    --primary-foreground: 0 0% 5%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 264 30% 18%;
+    --accent-foreground: 264 79% 75%;
+    --border: 264 30% 22%;
+    --input: 264 30% 22%;
+    --ring: 264 79% 65%;
+  }
+
+  * { @apply border-border; }
+  html, body { @apply h-full; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-make-gradient bg-clip-text text-transparent;
+  }
+
+  .bg-make-card {
+    @apply rounded-xl border border-[hsl(var(--make-purple)/0.12)] bg-card shadow-make-sm;
+  }
+
+  .ring-make-focus {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--make-purple))] focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Match-score pills */
+  .pill-score-high {
+    @apply rounded-full bg-[hsl(var(--success)/0.12)] px-2 py-0.5 text-xs font-medium text-[hsl(var(--success))];
+  }
+  .pill-score-mid {
+    @apply rounded-full bg-[hsl(var(--warning)/0.12)] px-2 py-0.5 text-xs font-medium text-[hsl(var(--warning))];
+  }
+  .pill-score-low {
+    @apply rounded-full bg-[hsl(var(--danger)/0.12)] px-2 py-0.5 text-xs font-medium text-[hsl(var(--danger))];
+  }
+}

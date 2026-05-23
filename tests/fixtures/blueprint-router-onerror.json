@@ -1,0 +1,70 @@
+{
+  "name": "HubSpot Deal → Facebook CAPI (test fixture)",
+  "flow": [
+    {
+      "id": 1,
+      "module": "hubspotcrm:watchDeals",
+      "version": 4,
+      "parameters": { "limit": 100 },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0, "messages": [] },
+        "parameters": [
+          { "name": "limit", "type": "number", "label": "Limit" }
+        ],
+        "restore": { "watchPattern": { "label": "Updated" } }
+      }
+    },
+    {
+      "id": 2,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "metadata": { "designer": { "x": 300, "y": 0 } },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 3,
+              "module": "facebook-conversion-leads:sendEvent",
+              "version": 2,
+              "parameters": { "pixelId": "123" },
+              "mapper": { "event_name": "Purchase" },
+              "filter": { "name": "Won deals", "conditions": [] },
+              "metadata": {
+                "designer": { "x": 600, "y": -100 },
+                "parameters": [{ "name": "pixelId", "type": "text" }],
+                "restore": { "pixelId": { "label": "Production Pixel" } }
+              },
+              "onerror": [
+                {
+                  "id": 4,
+                  "module": "builtin:Resume",
+                  "version": 1,
+                  "metadata": { "designer": { "x": 900, "y": -100 } }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 5,
+              "module": "slack:postMessage",
+              "version": 3,
+              "parameters": {},
+              "mapper": { "text": "Deal lost" },
+              "metadata": { "designer": { "x": 600, "y": 100 } }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": { "sequential": false, "maxErrors": 3 },
+    "designer": { "orphans": [] }
+  }
+}

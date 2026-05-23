@@ -1,0 +1,63 @@
+{
+  "name": "make-kb",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL API_TIMEOUT_MS && NODE_OPTIONS=--no-deprecation next dev --turbo",
+    "build": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL API_TIMEOUT_MS && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "evals:analysis": "tsx evals/run-analysis-evals.ts",
+    "evals:retrieval": "tsx evals/run-retrieval-evals.ts",
+    "db:types": "bash scripts/generate-types.sh",
+    "db:diff": "supabase db diff --schema public",
+    "db:push": "supabase db push",
+    "db:setup": "tsx scripts/setup-db.ts",
+    "ingest:backfill": "tsx scripts/backfill.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "@radix-ui/react-dialog": "^1.1.0",
+    "@radix-ui/react-dropdown-menu": "^2.1.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-tabs": "^1.1.0",
+    "@supabase/ssr": "^0.5.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "ai": "^4.0.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "dotenv": "^16.4.0",
+    "lucide-react": "^0.460.0",
+    "next": "^15.0.0",
+    "openai": "^4.65.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^2.5.0",
+    "tailwindcss": "^3.4.0",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.0.0",
+    "postcss": "^8.4.0",
+    "prettier": "^3.3.0",
+    "prettier-plugin-tailwindcss": "^0.6.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

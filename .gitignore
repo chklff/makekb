@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local env
+.env
+.env.local
+.env*.local
+
+# Secrets / Supabase local
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+.envrc
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+*.swp
+*.swo
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Test outputs
+coverage/
+.vitest-cache/
+
+# Generated types
+lib/supabase/types.ts.bak
+
+# Misc
+.cache/
+.turbo/
+.vercel/
+
+# Claude Code per-project session state — tool data, not source.
+.claude/
+
+# Planning-phase mockup screenshots at repo root (1MB+ each, not source).
+# If you ever want them tracked, move them to docs/archive/mockups/ first.
+/ChatGPT Image*.png
+/Screenshot*.png
+
+# Ad-hoc scratch files / backups that sometimes end up holding secrets during debugging.
+/scratch/
+*.scratch
+*.bak
+
+# OS misc
+.AppleDouble
+.LSOverride
+Thumbs.db
