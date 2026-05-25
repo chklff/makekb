@@ -52,7 +52,7 @@ const navItems: NavItem[] = [
   },
 ]
 
-export function Sidebar() {
+export function Sidebar({ orgName }: { orgName?: string | null }) {
   const pathname = usePathname()
   return (
     <aside className="hidden h-[calc(100vh-4rem)] w-60 shrink-0 flex-col justify-between border-r border-[hsl(var(--make-purple)/0.08)] bg-background px-3 py-4 md:flex">
@@ -101,7 +101,9 @@ export function Sidebar() {
             <span className="h-2 w-2 rounded-full bg-[hsl(var(--success))]" />
             <span className="font-medium text-foreground">Make connected</span>
           </div>
-          <p className="mt-1 text-muted-foreground">scn-kb-prod</p>
+          <p className="mt-1 truncate text-muted-foreground" title={orgName ?? undefined}>
+            {orgName ?? '—'}
+          </p>
         </div>
         <a
           href={feedbackMailto()}

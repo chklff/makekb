@@ -229,13 +229,7 @@ export default async function LandingPage() {
       </section>
 
       <footer className="mx-auto max-w-6xl px-6 pb-10 text-center text-xs text-muted-foreground">
-        Internal tool · Self-hosted on Vercel + Supabase ·{' '}
-        <a
-          href="mailto:o.chekalov@make.com?subject=Make%20Scenario%20KB%20feedback"
-          className="ring-make-focus rounded font-medium text-[hsl(var(--make-purple))] hover:underline"
-        >
-          Send feedback
-        </a>
+        Internal tool · Self-hosted on Vercel + Supabase · Sign in to send feedback
       </footer>
     </main>
   )

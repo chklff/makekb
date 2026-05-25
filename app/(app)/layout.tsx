@@ -52,7 +52,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         isAdmin={ctx.isAdmin}
       />
       <div className="mx-auto flex max-w-[1500px]">
-        <Sidebar />
+        <Sidebar orgName={ctx.memberships[0]?.org_name ?? null} />
         <div className="flex-1 px-6 py-8 md:px-10">{children}</div>
       </div>
     </div>

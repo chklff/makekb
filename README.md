@@ -121,18 +121,26 @@ This runs every file in `supabase/migrations/` in order. HNSW vector index, FTS 
 
 ### 4. Enable Google OAuth in Supabase
 
-Two dashboards, one-time:
+Two dashboards, one-time. The trick: **Google** only cares about the Supabase callback. **Supabase** is what redirects back to your app — so your app URL goes in Supabase, not Google.
 
 **Google Cloud Console** → `https://console.cloud.google.com/apis/credentials`
 - Create OAuth Client ID → **Web application**
-- Authorized redirect URI: `https://<your-supabase-project>.supabase.co/auth/v1/callback`
+- Authorized JavaScript origins: leave empty (Supabase doesn't need it)
+- **Authorized redirect URI** (the only one Google needs):
+  `https://<your-supabase-project>.supabase.co/auth/v1/callback`
 - Copy the Client ID + Client Secret
 
 **Supabase dashboard** → `Authentication → Providers → Google`
 - Enable, paste the Client ID + Secret, save
-- Then `Authentication → URL Configuration`:
-  - **Site URL**: `http://localhost:3000` (development) or your production URL
-  - **Redirect URLs**: add `http://localhost:3000/api/auth/callback`
+
+**Supabase dashboard** → `Authentication → URL Configuration`
+- **Site URL**: `http://localhost:3000` (you'll change this once you deploy — see [Deploy to production](#deploy-to-production))
+- **Redirect URLs** (whitelist — add all that apply):
+  - `http://localhost:3000/api/auth/callback` (local dev)
+  - `https://<your-production-domain>/api/auth/callback` (after deploy)
+  - `https://<vercel-preview-pattern>.vercel.app/api/auth/callback` (optional — for preview branches; pattern supports wildcards like `https://makekb-*-yourorg.vercel.app/api/auth/callback`)
+
+If you skip the Redirect URLs whitelist step, Supabase will reject the OAuth callback and you'll land on the sign-in page in a loop with no error visible to the user.
 
 ### 5. Sign in once
 
@@ -174,6 +182,22 @@ pnpm ingest:backfill                # the whole org
 Why local? The CLI bypasses HTTP timeouts and uses parallel workers. ~6 seconds per scenario, ~$0.03 each. A 500-scenario org takes ~10 minutes and costs ~$16.
 
 Once you're past the first backfill, the **Re-sync** button in the UI handles ad-hoc top-ups (up to 50 scenarios at a time) with a live progress bar.
+
+---
+
+## Deploy to production
+
+1. Push repo to GitHub, import into Vercel. Framework: Next.js (auto-detected).
+2. Vercel → Settings → Environment Variables: paste your `.env.local` except `DATABASE_URL`. Deploy.
+3. (Optional) Add a custom domain in Vercel → Settings → Domains.
+4. **Critical:** Supabase → Authentication → URL Configuration:
+   - Site URL = your prod URL
+   - Redirect URLs: add `https://<your-prod-url>/api/auth/callback` (keep `http://localhost:3000/api/auth/callback` too)
+5. Set hard monthly caps in Anthropic + OpenAI dashboards as a second layer beyond `DAILY_LLM_BUDGET_USD`.
+
+**Access control:** only emails matching `AUTO_GRANT_DOMAINS` get org membership — everyone else hits "No org access yet" and sees nothing. Google Cloud Console doesn't need updating: Google only sees the Supabase callback.
+
+**Vercel Pro** ($20/mo) needed only if `/api/ingest/batch` hits the free-tier 10s timeout (it's set to 300s).
 
 ---
 
