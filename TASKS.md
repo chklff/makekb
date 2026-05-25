@@ -6,7 +6,7 @@
 
 ## 🔴 In Progress
 
-_(none — v0.1.0 is ship-ready. Waiting on real-tester feedback to pick the next thing.)_
+_(none — v0.1.1 shipped. Waiting on real-tester feedback to pick the next thing.)_
 
 ---
 
@@ -46,6 +46,8 @@ _(none — v0.1.0 is ship-ready. Waiting on real-tester feedback to pick the nex
 
 <!-- Move completed items here with date. Newest at top. Never delete — it's your build log. -->
 
+- [x] 2026-05-25 — **v0.1.2 — Make-native description + interface.** `make_description` + `make_interface` columns on `make_scenarios`. `MakeClient.getScenarioInterface()`. Analysis prompt v1.1: factors human description (treated as highest-trust intent signal). Embedding input doubles description for retrieval weight. FTS column rebuilt with `make_description` at weight A. `PROMPT_VERSION` bumped → v1.1 forces re-analysis on next ingest.
+- [x] 2026-05-25 — **v0.1.1 — Pre-customer polish.** Real Make org name in sidebar pill (replaces `scn-kb-prod` hardcode). Landing-page mailto removed (no scrapeable personal email in public bundle). Branded `app/not-found.tsx` 404 page. README rewritten with 5-step Vercel deploy section + the Supabase Auth URL gotcha that loops sign-in if missed + vendor-side hard caps guidance.
 - [x] 2026-05-24 — **v0.1.0 SHIP-READY for testers.** In-app `/changelog` route rendering `CHANGELOG.md`. Sidebar version label links to it. README screenshot section + LICENSE (BSD-3-Clause). `.env.example` fully in sync with code (every `process.env.X` documented). Sidebar nav cleanup: removed dead Collections/Versions, marked Patterns/Connections/Settings as "Soon", removed dead History button from top bar. Fixed React duplicate-key warning in chat source cards (dedupe chips).
 - [x] 2026-05-24 — **Second-pass security review.** All first-pass fixes verified end-to-end. New finding: `llm_call_log` missed the anon-revoke (caught by Supabase advisor) — fixed via migration `20260524000001_revoke_anon_llm_call_log.sql`. 5 `pnpm audit` CVEs reviewed, all non-exploitable in our threat model (dev-only deps or features we don't use). 3 advisor lints remain — all by-design, documented.
 - [x] 2026-05-24 — **SEC-M6** CSP + 5 other security headers in `next.config.mjs`. Dev-aware (Turbopack HMR works), prod is strict.

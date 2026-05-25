@@ -133,14 +133,24 @@ export async function analyzeBlueprint(args: {
   cleanedBlueprint: unknown
   folderName?: string
   teamName?: string
+  /** The author's free-text "scenario settings → description" from Make. Optional. */
+  description?: string | null
+  /** GET /scenarios/{id}/interface payload. Optional. */
+  interfaceSpec?: unknown
 }): Promise<StructuredCallResult<AnalysisOutputT> & { prompt_version: string }> {
   const userMsg = [
-    `Analyze this Make.com scenario blueprint and submit via the tool.`,
+    `Analyze this Make.com scenario and submit via the tool.`,
     ``,
     `Scenario name: ${args.scenarioName}`,
     args.folderName ? `Folder: ${args.folderName}` : null,
     args.teamName ? `Team: ${args.teamName}` : null,
     ``,
+    args.description?.trim()
+      ? `HUMAN DESCRIPTION (highest-trust signal of intent):\n${args.description.trim()}\n`
+      : null,
+    args.interfaceSpec
+      ? `INTERFACE (input/output spec):\n${JSON.stringify(args.interfaceSpec)}\n`
+      : null,
     `BLUEPRINT:`,
     JSON.stringify(args.cleanedBlueprint),
   ]
@@ -157,7 +167,7 @@ export async function analyzeBlueprint(args: {
     maxTokens: 2000,
   })
 
-  return { ...result, prompt_version: process.env.PROMPT_VERSION ?? 'v1.0' }
+  return { ...result, prompt_version: process.env.PROMPT_VERSION ?? 'v1.1' }
 }
 
 export async function extractQueryFilters(query: string): Promise<StructuredCallResult<QueryFiltersT>> {

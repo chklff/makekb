@@ -83,6 +83,31 @@
 
 ---
 
+## v0.1.2 — Make-native description + interface ✅ DONE 2026-05-25
+
+> *"Stop ignoring metadata Make already gives us for free."*
+
+- [x] `MakeClient.getScenarioInterface()` — fetches `/scenarios/{id}/interface` (webhook + sub-scenario I/O spec)
+- [x] DB columns `make_description` + `make_interface` on `make_scenarios`
+- [x] FTS column rebuilt to include `make_description` at weight `'A'`
+- [x] Analysis prompt v1.1 — passes `HUMAN DESCRIPTION` + `INTERFACE` blocks to Sonnet
+- [x] Embedding input doubles the description text when present (retrieval weight)
+- [x] `PROMPT_VERSION=v1.1` — next ingest re-analyses every scenario
+
+---
+
+## v0.1.1 — Pre-customer polish ✅ DONE 2026-05-25
+
+> *"Last clean-up before the URL goes out."*
+
+- [x] Sidebar pill shows real Make org name (no more `scn-kb-prod` hardcode)
+- [x] Landing-page mailto removed (no scrapeable personal email in public bundle)
+- [x] Branded 404 page (`app/not-found.tsx`)
+- [x] README deploy section: 5-step Vercel deploy + Supabase Auth URL whitelist gotcha + vendor-side hard-cap guidance
+- [x] README install step 4 clarified (Google Cloud Console vs Supabase URL Configuration split)
+
+---
+
 ## v0.1.0 — Tester beta ✅ DONE 2026-05-24
 
 > *"Ship-ready for non-team testers."*

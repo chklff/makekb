@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-05-25 — Use Make's native `description` + `/interface` instead of inferring everything
+**Status**: Decided
+**Context**: For the first three months we fed only the cleaned blueprint JSON to Sonnet and asked it to infer everything (purpose, apps, trigger, complexity). We were ignoring two fields Make's API exposes out of the box: (1) the free-text `description` set in the scenario settings UI, and (2) `GET /scenarios/{id}/interface` which returns the webhook input schema for triggered scenarios and the output schema for scenarios callable as sub-scenarios.
+**Decision**:
+1. Add `make_description text` and `make_interface jsonb` columns on `make_scenarios`.
+2. Capture both on every ingest (`MakeClient.getScenarioInterface()` swallows 404 since most scenarios don't expose an interface).
+3. Pass `description` to Sonnet inside a `HUMAN DESCRIPTION` block — instruction is *trust the description as intent but verify against the blueprint; flag any contradiction in `reuse_notes`*.
+4. Include `description` in the FTS column at weight `'A'` (highest tier, same as `scenario_name`).
+5. Prepend `description` twice to the embedding input string — author's own words dominate the semantic vector.
+6. Bump `PROMPT_VERSION` to `v1.1` — forces re-analysis of every existing row on next ingest (hash dedup is by-design defeated for prompt changes).
+**Consequences**: Better retrieval quality where `description` is filled in (~ "find me the scenario that syncs Pipedrive deals to Slack" matches better when the author already wrote that sentence). Worst case where `description` is empty: zero downside — the LLM analysis still runs the same way. ~$15 one-time cost to re-analyse the existing 26 scenarios. Marginal token cost going forward: ~$0.0001 per scenario for the extra context. No change to the existing analysis schema or downstream surfaces.
+
+---
+
 ## 2026-05-21 — Project: Make Scenarios KB
 **Status**: Decided
 **Context**: An organization has hundreds of Make.com scenarios spread across teams/folders. People keep rebuilding the same automations because nobody knows what already exists. We need a semantic knowledge base over the full inventory with chat, browse, and reuse surfaces.

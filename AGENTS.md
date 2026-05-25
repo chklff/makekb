@@ -121,7 +121,7 @@ firing. Bypassing this for "just one quick call" is forbidden.
 ## Rule 9 — Prompt version is a first-class API
 
 The analysis prompt in `lib/llm/prompts/analysis-system.ts` is locked at
-`PROMPT_VERSION=v1.0`. Any wording change requires:
+`PROMPT_VERSION=v1.1`. Any wording change requires:
 
 1. Bump `PROMPT_VERSION` in `.env.example` (server-side only — used by ingest pipeline).
 2. Run `pnpm evals:analysis` — must not regress.

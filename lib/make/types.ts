@@ -53,6 +53,12 @@ export interface MakeScenarioListItem {
   created?: string
   lastEdit?: string
   createdByUser?: { id: number; name: string; email?: string }
+  /**
+   * Free-text scenario description from Make UI ("scenario settings → description").
+   * Optional + often empty in real orgs, but where filled it's the best single signal of intent.
+   * Returned by GET /scenarios/{id}; not present in /scenarios (list) by default.
+   */
+  description?: string | null
 }
 export interface MakeScenariosResponse {
   scenarios: MakeScenarioListItem[]
@@ -62,6 +68,25 @@ export interface MakeScenariosResponse {
     offset: number
     limit: number
   }
+}
+
+/**
+ * Scenario interface (input + output spec) — returned by GET /scenarios/{id}/interface.
+ * Webhook-triggered scenarios expose input fields; scenarios callable as sub-scenarios
+ * also expose outputs. Shape is open-ended on Make's side, so we keep it loose.
+ */
+export interface MakeScenarioInterface {
+  input?: unknown
+  output?: unknown
+  [k: string]: unknown
+}
+export interface MakeScenarioInterfaceResponse {
+  // Make returns either `{ interface: {...} }` or `{ inputs, outputs }` depending on version.
+  // We pass the whole envelope through so the analysis prompt can use whatever is present.
+  interface?: MakeScenarioInterface
+  inputs?: unknown
+  outputs?: unknown
+  [k: string]: unknown
 }
 
 // ──────────────────────────────────────────────────────────

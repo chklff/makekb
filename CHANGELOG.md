@@ -4,6 +4,42 @@ All notable changes to Scenario KB are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project loosely follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] — 2026-05-25 — Use Make's native description + interface
+
+Capture the metadata Make's API already exposes and we were ignoring.
+
+### Added
+
+- **`make_description` column** on `make_scenarios` — the free-text "scenario settings → description" field humans write in Make. Where filled it's the best single signal of intent.
+- **`make_interface` column** on `make_scenarios` — JSON payload from `GET /scenarios/{id}/interface`. Webhook input schema for triggered scenarios + output schema for sub-scenarios.
+- **`MakeClient.getScenarioInterface(id)`** — new client method, swallows 404 (most scenarios don't expose an interface).
+- **Analysis prompt v1.1** — now factors in `HUMAN DESCRIPTION` block (treated as highest-trust intent signal, flagged in `reuse_notes` if it contradicts the blueprint) and `INTERFACE` block. `PROMPT_VERSION` bumped to `v1.1` — next ingest will re-analyse every scenario (hash dedup is by-design defeated for prompt changes).
+- **Embedding input** now prepends the human description twice when present, weighting the author's own words highest for retrieval.
+- **FTS column** rebuilt to include `make_description` at weight `'A'` (same tier as `scenario_name`).
+
+### Migration
+
+- `20260525000001_make_description_and_interface.sql` — adds the two columns + drops/recreates `search_text` generated column + GIN index.
+
+---
+
+## [0.1.1] — 2026-05-25 — Pre-customer polish
+
+Tightening pass before sharing the URL with first testers.
+
+### Changed
+
+- **Sidebar org pill** now shows the real Make organization name (pulled from `make_organizations.org_name`) instead of the hardcoded `scn-kb-prod` placeholder.
+- **Landing page footer** no longer exposes a personal email mailto — replaced with a "Sign in to send feedback" note. Signed-in users still get the env-driven feedback button in the sidebar.
+- **README** rewritten deploy section: 5-step Vercel deploy, the Supabase Auth URL gotcha that breaks OAuth if missed, vendor-side hard caps as defense-in-depth alongside `DAILY_LLM_BUDGET_USD`.
+- **Step 4 of install** clarified: Google Cloud Console only needs the Supabase callback; your app URL goes in Supabase's Redirect URLs whitelist.
+
+### Added
+
+- **Branded 404 page** (`app/not-found.tsx`) — gradient "404", Make logo, back-to-home + Ask-KB CTAs. Replaces the default Next.js 404.
+
+---
+
 ## [0.1.0] — 2026-05-24 — Tester beta
 
 The first version we'd hand to someone outside the room. Working end-to-end

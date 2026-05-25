@@ -66,21 +66,30 @@ export async function embedBatch(texts: string[]): Promise<EmbedResult[]> {
 /**
  * Build the embedding input string from an LLM analysis result.
  * Embed *meaning*, not JSON — see /docs/archive/AI-Architecture.md §4.3.
+ *
+ * `makeDescription` is the human-written "scenario settings → description" from Make.
+ * When present we prepend it twice so it dominates the semantic vector — the author's
+ * own words are the best single signal of intent for retrieval.
  */
-export function buildEmbeddingInput(a: {
-  one_line_summary: string
-  business_purpose: string
-  full_description: string
-  data_flow: string
-  apps_involved: string[]
-  tags: string[]
-  use_cases: string[]
-  category: string
-  trigger_event: string
-  trigger_app: string
-  trigger_type: string
-}): string {
+export function buildEmbeddingInput(
+  a: {
+    one_line_summary: string
+    business_purpose: string
+    full_description: string
+    data_flow: string
+    apps_involved: string[]
+    tags: string[]
+    use_cases: string[]
+    category: string
+    trigger_event: string
+    trigger_app: string
+    trigger_type: string
+  },
+  makeDescription?: string | null,
+): string {
+  const humanDesc = makeDescription?.trim() ? `${makeDescription.trim()}. ${makeDescription.trim()}. ` : ''
   return [
+    humanDesc,
     `${a.one_line_summary}.`,
     a.business_purpose,
     a.full_description,

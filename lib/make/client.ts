@@ -17,6 +17,7 @@ import type {
   MakeFoldersResponse,
   MakeOrgListItem,
   MakeOrgResponse,
+  MakeScenarioInterfaceResponse,
   MakeScenarioListItem,
   MakeScenariosResponse,
   MakeTeamListItem,
@@ -153,5 +154,21 @@ export class MakeClient {
   async getScenario(scenarioId: number | string): Promise<MakeScenarioListItem> {
     const data = await this.req<{ scenario: MakeScenarioListItem }>(`/scenarios/${scenarioId}`)
     return data.scenario
+  }
+
+  /**
+   * Fetch the scenario's input/output interface spec. Used by webhook-triggered scenarios
+   * (defines accepted input fields) and scenarios callable as sub-scenarios (defines outputs).
+   *
+   * Returns `null` on 404 — many scenarios don't expose an interface and Make 404s instead
+   * of returning empty. We swallow the 404 so callers don't have to.
+   */
+  async getScenarioInterface(scenarioId: number | string): Promise<MakeScenarioInterfaceResponse | null> {
+    try {
+      return await this.req<MakeScenarioInterfaceResponse>(`/scenarios/${scenarioId}/interface`)
+    } catch (err) {
+      if (err instanceof MakeAPIError && err.status === 404) return null
+      throw err
+    }
   }
 }

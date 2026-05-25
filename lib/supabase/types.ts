@@ -324,7 +324,9 @@ export type Database = {
           llm_prompt_version: string | null
           make_created_at: string | null
           make_created_by_id: string | null
+          make_description: string | null
           make_folder_id: string | null
+          make_interface: Json | null
           make_org_id: string | null
           make_scenario_id: string
           make_team_id: string | null
@@ -370,7 +372,9 @@ export type Database = {
           llm_prompt_version?: string | null
           make_created_at?: string | null
           make_created_by_id?: string | null
+          make_description?: string | null
           make_folder_id?: string | null
+          make_interface?: Json | null
           make_org_id?: string | null
           make_scenario_id: string
           make_team_id?: string | null
@@ -416,7 +420,9 @@ export type Database = {
           llm_prompt_version?: string | null
           make_created_at?: string | null
           make_created_by_id?: string | null
+          make_description?: string | null
           make_folder_id?: string | null
+          make_interface?: Json | null
           make_org_id?: string | null
           make_scenario_id?: string
           make_team_id?: string | null

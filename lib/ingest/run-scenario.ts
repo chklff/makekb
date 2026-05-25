@@ -119,12 +119,20 @@ export async function runScenarioIngestion(input: RunInput): Promise<RunResult> 
     }
   }
 
-  // ── 1. Fetch scenario meta + blueprint
+  // ── 1. Fetch scenario meta + blueprint + interface (interface is best-effort)
   let scenarioMeta: MakeScenarioListItem | null = null
   let blueprint: MakeBlueprint
+  let interfaceSpec: unknown = null
   try {
     scenarioMeta = await make.getScenario(scenarioId).catch(() => null)
     blueprint = await make.getBlueprint(scenarioId)
+    // Interface is optional — many scenarios don't expose one. Client returns null on 404.
+    interfaceSpec = await make.getScenarioInterface(scenarioId).catch((err) => {
+      log.warn('getScenarioInterface failed; continuing without it', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return null
+    })
   } catch (err) {
     run.status = 'failed_fetch'
     run.error_message = err instanceof Error ? err.message : String(err)
@@ -137,6 +145,7 @@ export async function runScenarioIngestion(input: RunInput): Promise<RunResult> 
   const teamId = scenarioMeta?.teamId ?? null
   const folderId = scenarioMeta?.folderId ?? null
   const createdBy = scenarioMeta?.createdByUser ?? null
+  const makeDescription = scenarioMeta?.description?.trim() || null
 
   // ── 2. Hash + skip check
   const blueprintHash = sha256OfJson(blueprint)
@@ -170,10 +179,15 @@ export async function runScenarioIngestion(input: RunInput): Promise<RunResult> 
     return finalize({ error: run.error_message })
   }
 
-  // ── 4. Anthropic analysis
+  // ── 4. Anthropic analysis (with human description + interface for context)
   let analysis
   try {
-    analysis = await analyzeBlueprint({ scenarioName, cleanedBlueprint: cleaned })
+    analysis = await analyzeBlueprint({
+      scenarioName,
+      cleanedBlueprint: cleaned,
+      description: makeDescription,
+      interfaceSpec,
+    })
   } catch (err) {
     run.status = 'failed_llm'
     run.error_message = err instanceof Error ? err.message : String(err)
@@ -189,10 +203,10 @@ export async function runScenarioIngestion(input: RunInput): Promise<RunResult> 
 
   const a = analysis.output
 
-  // ── 5. Embedding
+  // ── 5. Embedding (description doubled at the start — see buildEmbeddingInput)
   let embedding
   try {
-    embedding = await embed(buildEmbeddingInput(a))
+    embedding = await embed(buildEmbeddingInput(a, makeDescription))
   } catch (err) {
     run.status = 'failed_embed'
     run.error_message = err instanceof Error ? err.message : String(err)
@@ -325,6 +339,9 @@ export async function runScenarioIngestion(input: RunInput): Promise<RunResult> 
     created_by_user_id: userRowId,
     make_created_by_id: createdBy?.id ? String(createdBy.id) : null,
     created_by_name: createdByName,
+    // Native Make metadata (v0.1.2)
+    make_description: makeDescription,
+    make_interface: interfaceSpec ? asJson(interfaceSpec) : null,
     // LLM analysis
     one_line_summary: a.one_line_summary,
     business_purpose: a.business_purpose,
