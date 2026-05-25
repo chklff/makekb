@@ -285,7 +285,9 @@ function ScenarioRow({
             </div>
             {apps.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {apps.slice(0, 6).map((a) => (
+                {/* Dedupe — the LLM analysis schema asks for unique apps but doesn't
+                    always comply. React rejects duplicate keys. */}
+                {Array.from(new Set(apps)).slice(0, 6).map((a) => (
                   <span
                     key={a}
                     className="rounded bg-[hsl(var(--make-purple)/0.08)] px-1.5 py-0.5 font-mono text-[11px] text-[hsl(var(--make-purple))]"

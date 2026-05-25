@@ -263,12 +263,18 @@ function SourceCard({ index, scenario }: { index: number; scenario: RetrievedSce
   const { pct, tier } = formatMatchScore(scenario.score)
   const tierClass =
     tier === 'high' ? 'pill-score-high' : tier === 'mid' ? 'pill-score-mid' : 'pill-score-low'
-  const chips = [
-    scenario.team_name,
-    scenario.category,
-    scenario.trigger_app,
-    ...scenario.apps_involved.slice(0, 2),
-  ].filter(Boolean) as string[]
+  // Dedupe — trigger_app is typically also in apps_involved, so naive concatenation
+  // produces duplicates that React rejects as non-unique keys.
+  const chips = Array.from(
+    new Set(
+      [
+        scenario.team_name,
+        scenario.category,
+        scenario.trigger_app,
+        ...scenario.apps_involved.slice(0, 2),
+      ].filter(Boolean) as string[],
+    ),
+  )
 
   return (
     <Card id={`src-${index}`} className="scroll-mt-24">

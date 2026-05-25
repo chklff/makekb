@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BookOpen, History } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
 import { MakeLogo } from '@/components/brand/make-logo'
 import { Button } from '@/components/ui/button'
 import { ResyncButton } from './resync-button'
@@ -44,10 +44,8 @@ export function TopBar({
             Browse
           </Link>
         </Button>
-        <Button variant="ghost" size="sm">
-          <History className="size-4" />
-          History
-        </Button>
+        {/* Conversation history is v1.5 — a dedicated sidebar/page, not a top-bar button.
+            Tracked in PLAN.md backlog. */}
         {isAdmin && <ResyncButton />}
         <UserMenu initials={userInitials} email={userEmail} isAdmin={isAdmin} />
       </div>
