@@ -106,3 +106,44 @@
     @apply rounded-full bg-[hsl(var(--danger)/0.12)] px-2 py-0.5 text-xs font-medium text-[hsl(var(--danger))];
   }
 }
+
+/* Minimal typography for /changelog (no Tailwind Typography plugin needed) */
+.changelog-prose h1 {
+  @apply mb-3 text-xl font-semibold tracking-tighter;
+}
+.changelog-prose h2 {
+  @apply mb-3 mt-8 text-lg font-semibold tracking-tighter;
+}
+.changelog-prose h3 {
+  @apply mb-2 mt-5 text-sm font-semibold uppercase tracking-wider text-[hsl(var(--make-purple))];
+}
+.changelog-prose p {
+  @apply my-3 text-sm leading-relaxed;
+}
+.changelog-prose ul {
+  @apply my-3 ml-5 list-disc space-y-1.5;
+}
+.changelog-prose ol {
+  @apply my-3 ml-5 list-decimal space-y-1.5;
+}
+.changelog-prose li {
+  @apply text-sm leading-relaxed;
+}
+.changelog-prose strong {
+  @apply font-medium text-foreground;
+}
+.changelog-prose code {
+  @apply rounded bg-secondary px-1 py-0.5 font-mono text-[12px];
+}
+.changelog-prose a {
+  @apply text-[hsl(var(--make-purple))] underline-offset-2 hover:underline;
+}
+.changelog-prose hr {
+  @apply my-6 border-[hsl(var(--make-purple)/0.12)];
+}
+.changelog-prose blockquote {
+  @apply my-3 border-l-2 border-[hsl(var(--make-purple)/0.3)] pl-3 text-muted-foreground;
+}
+.changelog-prose em {
+  @apply italic text-muted-foreground;
+}

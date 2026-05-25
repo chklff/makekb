@@ -123,7 +123,7 @@ firing. Bypassing this for "just one quick call" is forbidden.
 The analysis prompt in `lib/llm/prompts/analysis-system.ts` is locked at
 `PROMPT_VERSION=v1.0`. Any wording change requires:
 
-1. Bump `PROMPT_VERSION` in `.env.example` and Edge Function secrets.
+1. Bump `PROMPT_VERSION` in `.env.example` (server-side only — used by ingest pipeline).
 2. Run `pnpm evals:analysis` — must not regress.
 3. Document in `DECISIONS.md`.
 4. The next batch ingestion will re-analyze all rows whose `llm_prompt_version`
@@ -131,4 +131,22 @@ The analysis prompt in `lib/llm/prompts/analysis-system.ts` is locked at
 
 ---
 
-*End of agent rules. v1.0.*
+## Rule 10 — Release discipline
+
+The app exposes its own version via the sidebar footer (`v0.1.0`) which links
+to the in-app `/changelog` page that renders `CHANGELOG.md` from repo root.
+
+On each meaningful release (user-visible behaviour change, new feature, security fix):
+
+1. Bump `package.json` `version` (semver: patch for fixes, minor for features, major for breaking).
+2. Add a new section at the **top** of `CHANGELOG.md` following the Keep-a-Changelog format:
+   `## [x.y.z] — YYYY-MM-DD — short theme` with `### Added / Changed / Fixed / Security` sub-headers.
+3. Commit. The sidebar pill + `/changelog` page auto-pick up the new version.
+4. Tag the commit `git tag v0.1.1 && git push --tags` if you want it surfaced in GitHub Releases.
+
+Don't bump the version for typo fixes, docs-only changes, or internal refactors that
+no user can observe. Don't ship without a CHANGELOG entry once you have testers.
+
+---
+
+*End of agent rules. v1.1 (added Rule 10).*

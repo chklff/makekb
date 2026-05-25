@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { cn } from '@/lib/utils'
+import { APP_VERSION, changelogUrl } from '@/lib/utils/version'
 
 // Coming-soon items are visible in the nav so testers see the roadmap shape,
 // but they don't navigate (no 404s). Routes that were mockup-only leftovers
@@ -109,8 +110,38 @@ export function Sidebar() {
           <MessageCircleQuestion className="size-4" />
           Give feedback
         </a>
+        <VersionLabel />
       </div>
     </aside>
+  )
+}
+
+function VersionLabel() {
+  const { href, external } = changelogUrl()
+  const label = `v${APP_VERSION}`
+  // External URL (set via NEXT_PUBLIC_CHANGELOG_URL) opens in a new tab.
+  // Internal /changelog uses Next.js client-side nav and renders CHANGELOG.md from repo root.
+  if (external) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="ring-make-focus block text-center text-[11px] text-muted-foreground/70 hover:text-[hsl(var(--make-purple))]"
+        title="View version history"
+      >
+        {label} ↗
+      </a>
+    )
+  }
+  return (
+    <Link
+      href={href}
+      className="ring-make-focus block text-center text-[11px] text-muted-foreground/70 hover:text-[hsl(var(--make-purple))]"
+      title="View changelog"
+    >
+      {label}
+    </Link>
   )
 }
 
