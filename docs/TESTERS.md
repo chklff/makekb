@@ -65,11 +65,10 @@ If you have admin access: click **Re-sync** top-right. Pulls the latest from Mak
 
 ## What doesn't work yet ⏳
 
-- The **History** button in the top bar (decorative)
-- The **Patterns** section in browse (needs ≥100 scenarios to be meaningful)
+- Sidebar items marked **Soon** (Patterns / Connections / Settings) — placeholders for v1.5
 - Direct import to Make from the Adapt panel — for now you **download** the JSON and import manually
 - Mobile — desktop-first, looks rough on a phone
-- Conversation history (each chat session is fresh)
+- Conversation history — each chat session is fresh; previous chats aren't surfaced in the UI yet
 
 ---
 

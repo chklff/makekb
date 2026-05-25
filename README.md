@@ -11,6 +11,22 @@ Built for internal company use. Self-hosted on Vercel + Supabase. ~$60/month all
 
 ---
 
+## Screenshots
+
+**Ask KB — chat with grounded citations**
+
+![Ask KB chat surface](docs/screenshots/chat.png)
+
+**Browse — search + filter chips + match-score slider**
+
+![Browse with filters](docs/screenshots/browse.png)
+
+**Scenario detail + Adapt with AI**
+
+![Scenario detail](docs/screenshots/detail.png)
+
+---
+
 ## Stack
 
 | Layer | Choice |
