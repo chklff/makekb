@@ -2,18 +2,54 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MessageSquare, LayoutGrid, Layers2, FolderOpen, History, Plug, Settings, MessageCircleQuestion } from 'lucide-react'
+import {
+  MessageSquare,
+  LayoutGrid,
+  Layers2,
+  Plug,
+  Settings,
+  MessageCircleQuestion,
+} from 'lucide-react'
+import type { ComponentType } from 'react'
 import { cn } from '@/lib/utils'
 
-const navItems = [
+// Coming-soon items are visible in the nav so testers see the roadmap shape,
+// but they don't navigate (no 404s). Routes that were mockup-only leftovers
+// (Collections, Versions) were removed entirely.
+interface NavItem {
+  href: string
+  label: string
+  icon: ComponentType<{ className?: string }>
+  comingSoon?: boolean
+  /** Optional tooltip on hover — explains when it'll ship. */
+  title?: string
+}
+
+const navItems: NavItem[] = [
   { href: '/chat', label: 'Ask KB', icon: MessageSquare },
   { href: '/browse', label: 'Browse', icon: LayoutGrid },
-  { href: '/patterns', label: 'Patterns', icon: Layers2 },
-  { href: '/collections', label: 'Collections', icon: FolderOpen },
-  { href: '/versions', label: 'Versions', icon: History },
-  { href: '/connections', label: 'Connections', icon: Plug },
-  { href: '/settings', label: 'Settings', icon: Settings },
-] as const
+  {
+    href: '/patterns',
+    label: 'Patterns',
+    icon: Layers2,
+    comingSoon: true,
+    title: 'Pattern clustering — needs ≥100 scenarios. Coming in v1.5.',
+  },
+  {
+    href: '/connections',
+    label: 'Connections',
+    icon: Plug,
+    comingSoon: true,
+    title: 'Per-user Make.com tokens — coming in v1.5.',
+  },
+  {
+    href: '/settings',
+    label: 'Settings',
+    icon: Settings,
+    comingSoon: true,
+    title: 'User preferences + role management — coming in v1.5.',
+  },
+]
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -21,8 +57,25 @@ export function Sidebar() {
     <aside className="hidden h-[calc(100vh-4rem)] w-60 shrink-0 flex-col justify-between border-r border-[hsl(var(--make-purple)/0.08)] bg-background px-3 py-4 md:flex">
       <nav className="flex flex-col gap-1">
         {navItems.map((item) => {
-          const active = pathname?.startsWith(item.href)
           const Icon = item.icon
+          if (item.comingSoon) {
+            // Render as a disabled, non-navigating row with a "Soon" pill.
+            return (
+              <div
+                key={item.href}
+                title={item.title ?? 'Coming soon'}
+                className="flex cursor-default items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground/60"
+                aria-disabled="true"
+              >
+                <Icon className="size-4" />
+                <span className="flex-1">{item.label}</span>
+                <span className="rounded-full bg-[hsl(var(--make-purple)/0.08)] px-1.5 py-0.5 text-[10px] font-medium text-[hsl(var(--make-purple))]">
+                  Soon
+                </span>
+              </div>
+            )
+          }
+          const active = pathname?.startsWith(item.href)
           return (
             <Link
               key={item.href}
