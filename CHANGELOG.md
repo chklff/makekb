@@ -4,6 +4,49 @@ All notable changes to Scenario KB are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project loosely follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-05-25 — /patterns page with automatic clustering
+
+The KB now answers the North-Star question — "do we have something like X?" — at the **pattern** level, not just the scenario level.
+
+### Added
+
+- **`/patterns` route** — grid of pattern cards. Each card = a group of scenarios that solve the same problem with different apps. Click any variant to open it; "Reuse →" opens the cleanest example in Adapt mode.
+- **Greedy clustering algorithm** (`lib/clustering/greedy.ts`) — for each ungrouped scenario, find neighbors within cosine ≥ 0.85, that's a cluster; repeat until done. Deterministic, no clustering library dependency, runs server-side per request (<2s for 500+ rows).
+- **Tunable threshold** — `/patterns?threshold=0.75` widens, `?threshold=0.92` tightens.
+- **Demo toggle** — `/patterns` shows real + synthetic by default (this is the page where demo data is meant to be visible). `/patterns?demo=0` for real-only.
+- **Pattern card UX:** cluster size pill, category badges, trigger-app variant chips, top-7 member list with similarity percent, mix indicator (real-only / synthetic-only / mixed).
+- **Sidebar** — Patterns no longer marked "Soon"; live link.
+
+### Why this matters
+
+This is the slide-worthy demo. With 500 synthetic scenarios across 25 archetypes, the page surfaces ~25 clean pattern cards showing CRM × notification-channel families, ticketing × routing families, payment × dunning families. Visual proof that the KB compresses duplicate work — exactly the value prop in `PLAN.md` North Star.
+
+---
+
+## [0.1.3] — 2026-05-25 — Synthetic data for pattern-clustering prototyping
+
+Generate realistic demo data without waiting for the org to grow to 100+ scenarios.
+
+### Added
+
+- **`is_synthetic` column** on `make_scenarios` — synthetic rows always flagged.
+- **`search_scenarios` RPC** new `p_include_synthetic` parameter (default `false`) — chat + search never cite synthetic rows.
+- **`/browse?include_demo=1`** — opt-in toggle to show synthetic data in browse. Default hides them.
+- **`scripts/generate-synthetic-scenarios.ts`** — 25 archetypes × app variant matrix produces ~1019 realistic scenarios; trims to N (default 500) via round-robin across archetype families so coverage stays balanced (all 8 categories represented). Real OpenAI embeddings (~$0.005 total). No Sonnet/Haiku.
+- **pnpm scripts:** `synth:generate` + `synth:purge`.
+
+### Verified
+
+- All 500 rows have real 1536-dim embeddings.
+- Cosine similarity inside an archetype family ≥ 0.91 across all app-axis variants → tight clusters form.
+- Real-org retrieval unaffected: chat + search default-exclude synthetic.
+
+### Migration
+
+- `20260525000002_synthetic_data_support.sql` — column + index + RPC signature.
+
+---
+
 ## [0.1.2] — 2026-05-25 — Use Make's native description + interface
 
 Capture the metadata Make's API already exposes and we were ignoring.

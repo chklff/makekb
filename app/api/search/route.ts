@@ -43,12 +43,11 @@ export async function POST(req: Request) {
   const t = Date.now()
   try {
     const results = await hybridSearch(query, { filters, limit })
+    // Note: we no longer attach `open_in_make_url` to search results — the URL needs
+    // make_team_id which the RPC doesn't return. UI builds it on the detail page.
     return NextResponse.json({
       query,
-      results: results.map((r) => ({
-        ...r,
-        open_in_make_url: openInMakeUrl(r.make_scenario_id),
-      })),
+      results,
       took_ms: Date.now() - t,
     })
   } catch (err) {
@@ -60,7 +59,3 @@ export async function POST(req: Request) {
   }
 }
 
-function openInMakeUrl(makeScenarioId: string): string {
-  const base = process.env.MAKE_WEB_BASE_URL ?? 'https://eu1.make.com'
-  return `${base.replace(/\/$/, '')}/scenario/${makeScenarioId}/edit`
-}

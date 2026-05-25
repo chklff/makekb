@@ -25,6 +25,10 @@ Built for internal company use. Self-hosted on Vercel + Supabase. ~$60/month all
 
 ![Scenario detail](docs/screenshots/detail.png)
 
+**Patterns — automatically grouped scenarios that solve the same problem with different apps**
+
+![Patterns clusters](docs/screenshots/patterns.png)
+
 ---
 
 ## Stack

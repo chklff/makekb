@@ -36,13 +36,15 @@ export interface HybridSearchOptions {
   filters?: SearchFilters
   limit?: number
   vectorWeight?: number
+  /** Include synthetic/demo rows. Default false — chat + search never see them. */
+  includeSynthetic?: boolean
 }
 
 export async function hybridSearch(
   query: string,
   opts: HybridSearchOptions = {},
 ): Promise<SearchResult[]> {
-  const { filters = {}, limit = 10, vectorWeight = 0.7 } = opts
+  const { filters = {}, limit = 10, vectorWeight = 0.7, includeSynthetic = false } = opts
   const supabase = await createClient()
 
   const { vector } = await embed(query)
@@ -53,6 +55,7 @@ export async function hybridSearch(
     p_query_text: query,
     p_match_count: limit,
     p_vector_weight: vectorWeight,
+    p_include_synthetic: includeSynthetic,
   }
   if (filters.apps?.length) args.p_apps = filters.apps
   if (filters.categories?.length) args.p_categories = filters.categories

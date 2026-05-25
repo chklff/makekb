@@ -46,8 +46,12 @@ export async function getAppUserContext(): Promise<AppUserContext | null> {
   const isAdmin = flatMemberships.some((m) => m.role === 'owner' || m.role === 'admin')
 
   // Counts — RLS-scoped, so they reflect only orgs this user can see.
+  // Exclude synthetic rows from the top-bar count so it matches the default browse view.
   const [scenariosRes, patternsRes] = await Promise.all([
-    supabase.from('make_scenarios').select('id', { count: 'exact', head: true }),
+    supabase
+      .from('make_scenarios')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_synthetic', false),
     supabase.from('scenario_patterns').select('id', { count: 'exact', head: true }),
   ])
 

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/server'
 import type { Tables } from '@/lib/supabase/types'
+import { openInMakeUrl } from '@/lib/utils/make-url'
 import { AdaptPanel } from './adapt-panel'
 
 export const dynamic = 'force-dynamic'
@@ -162,7 +163,7 @@ export default async function ScenarioDetailPage({
             <CardContent className="space-y-2">
               <Button variant="gradient" className="w-full justify-center" asChild>
                 <a
-                  href={openInMakeUrl(row.make_scenario_id)}
+                  href={openInMakeUrl(row.make_scenario_id, row.make_team_id)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -294,10 +295,6 @@ function parseBullets(text: string): string[] {
   return []
 }
 
-function openInMakeUrl(makeScenarioId: string): string {
-  const base = process.env.MAKE_WEB_BASE_URL ?? 'https://eu1.make.com'
-  return `${base.replace(/\/$/, '')}/scenario/${makeScenarioId}/edit`
-}
 
 function formatRelative(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()

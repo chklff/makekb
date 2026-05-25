@@ -38,18 +38,22 @@ export default async function BrowsePage({
   const complexityFilter = arr(sp.complexity) as ('simple' | 'medium' | 'complex')[]
   const minMatchPct = Math.max(0, Math.min(100, Number(sp.min_match ?? 0) || 0))
   const minMatch = minMatchPct / 100
+  // Demo data is hidden by default. `?include_demo=1` to show generator-produced rows
+  // (see scripts/generate-synthetic-scenarios.ts). Chat + search NEVER include them.
+  const includeDemo = sp.include_demo === '1'
 
   const supabase = await createClient()
 
   // 1. Always fetch the full org list once — used for facet counts.
   //    At our scale (≤500 scenarios) this is fine to do every browse render.
-  const { data: allRaw, error: allErr } = await supabase
+  let query = supabase
     .from('make_scenarios')
     .select(
       'id, make_scenario_id, scenario_name, one_line_summary, category, trigger_type, trigger_app, complexity, apps_involved, team_name, analyzed_at',
     )
     .order('analyzed_at', { ascending: false })
-    .returns<BrowseRow[]>()
+  if (!includeDemo) query = query.eq('is_synthetic', false)
+  const { data: allRaw, error: allErr } = await query.returns<BrowseRow[]>()
 
   if (allErr) return <ErrorState message={allErr.message} />
   const all = allRaw ?? []
@@ -77,6 +81,7 @@ export default async function BrowsePage({
           complexity: complexityFilter.length ? complexityFilter : undefined,
         },
         limit: 50,
+        includeSynthetic: includeDemo,
       })
       // Look up team_name etc. from the `all` map so we can render the same card shape.
       const byId = new Map(all.map((r) => [r.id, r]))

@@ -1,6 +1,6 @@
 {
   "name": "make-kb",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "engines": {
     "node": ">=20.0.0",
@@ -21,7 +21,9 @@
     "db:diff": "supabase db diff --schema public",
     "db:push": "supabase db push",
     "db:setup": "tsx scripts/setup-db.ts",
-    "ingest:backfill": "tsx scripts/backfill.ts"
+    "ingest:backfill": "tsx scripts/backfill.ts",
+    "synth:generate": "tsx scripts/generate-synthetic-scenarios.ts",
+    "synth:purge": "tsx scripts/generate-synthetic-scenarios.ts --purge"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",

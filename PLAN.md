@@ -83,6 +83,33 @@
 
 ---
 
+## v0.2.0 — Pattern clustering UI ✅ DONE 2026-05-25
+
+> *"The North-Star feature: stop rebuilding what already exists."*
+
+- [x] Greedy nearest-neighbor clustering algorithm in `lib/clustering/greedy.ts`
+- [x] `/patterns` route — grid of pattern cards, member list with similarity %, Reuse CTA
+- [x] Tunable threshold via `?threshold=0.85` (default 0.85; lower = wider clusters)
+- [x] Demo data shown by default on this page (different from `/browse`)
+- [x] Sidebar Patterns link no longer "Soon"
+- [x] Validated on real + synthetic mix (527 rows → ~25 pattern cards)
+
+---
+
+## v0.1.3 — Synthetic data for pattern-clustering ✅ DONE 2026-05-25
+
+> *"Prototype /patterns without waiting for 100 real scenarios."*
+
+- [x] `is_synthetic` column on `make_scenarios` + index
+- [x] `search_scenarios` RPC: `p_include_synthetic` flag (default false)
+- [x] Chat + `/api/search` never include synthetic
+- [x] `/browse` hides by default; `?include_demo=1` shows them
+- [x] Generator script: 25 archetypes × app variants, round-robin merged → balanced 500 rows
+- [x] All 8 categories represented (sales 100 / support 80 / devops/ecommerce/marketing/finance 60 each / data-sync 40 / hr 40)
+- [x] Real OpenAI embeddings — clustering verified (within-archetype cosine ≥ 0.91)
+
+---
+
 ## v0.1.2 — Make-native description + interface ✅ DONE 2026-05-25
 
 > *"Stop ignoring metadata Make already gives us for free."*
@@ -152,7 +179,7 @@
 
 ### Capability gaps
 
-- [ ] **Pattern clustering** — once ≥100 scenarios are ingested, cluster by embedding similarity and surface as collapsible pattern cards
+- [x] ~~Pattern clustering~~ — shipped in v0.2.0
 - [ ] **Conversation history sidebar** — list past chats, click to resume; replaces the removed History button
 - [ ] **Direct import to Make** from the Adapt panel via Make API (today: download JSON, paste manually)
 - [ ] **Folder picker on Re-sync UI button** (today: CLI only via `pnpm ingest:backfill --folder=...`)

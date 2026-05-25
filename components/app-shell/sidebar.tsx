@@ -29,13 +29,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/chat', label: 'Ask KB', icon: MessageSquare },
   { href: '/browse', label: 'Browse', icon: LayoutGrid },
-  {
-    href: '/patterns',
-    label: 'Patterns',
-    icon: Layers2,
-    comingSoon: true,
-    title: 'Pattern clustering — needs ≥100 scenarios. Coming in v1.5.',
-  },
+  { href: '/patterns', label: 'Patterns', icon: Layers2 },
   {
     href: '/connections',
     label: 'Connections',
