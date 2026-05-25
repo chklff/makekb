@@ -64,7 +64,7 @@ pnpm install
 cp .env.example .env.local
 ```
 
-Open `.env.local` and fill in:
+`.env.example` is the source of truth — open `.env.local` and fill in the values it lists. The required keys:
 
 ```bash
 # Supabase (dashboard → Project Settings → API)
@@ -72,8 +72,8 @@ NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
 
-# Postgres direct URL (dashboard → Project Settings → Database → Connection string,
-# select "Direct connection", NOT pooler). Only used by scripts/setup-db.ts.
+# Direct Postgres connection (dashboard → Project Settings → Database → Connection
+# string → "Direct connection", NOT pooler). Only used by `pnpm db:setup`.
 DATABASE_URL=postgresql://postgres:[password]@db.<project>.supabase.co:5432/postgres
 
 # LLM
@@ -83,15 +83,17 @@ OPENAI_API_KEY=sk-proj-...
 # Make
 MAKE_API_TOKEN=...
 MAKE_API_BASE_URL=https://eu1.make.com/api/v2     # or https://us1.make.com/api/v2
+MAKE_WEB_BASE_URL=https://eu1.make.com            # for "Open in Make" links; match region above
 MAKE_DEFAULT_ORG_ID=12345                          # your Make org's numeric id
-
-# Optional — leave defaults unless you know better
-LLM_MODEL_ANALYSIS=claude-sonnet-4-5-20250929
-LLM_MODEL_CHAT=claude-haiku-4-5-20251001
-LLM_MODEL_REUSE=claude-sonnet-4-5-20250929
-EMBEDDING_MODEL=text-embedding-3-small
-PROMPT_VERSION=v1.0
 ```
+
+Optional (covered in `.env.example` with defaults that work out of the box):
+- Pinned model versions (`LLM_MODEL_*`, `EMBEDDING_MODEL`, `PROMPT_VERSION`)
+- Daily spend caps (`DAILY_LLM_BUDGET_USD`, `DAILY_EMBEDDING_BUDGET_USD`)
+- Auto-grant on first sign-in (`AUTO_GRANT_DOMAINS`, `AUTO_GRANT_ADMIN_EMAILS`) — see step 6
+- Feedback email override (`NEXT_PUBLIC_FEEDBACK_EMAIL`)
+- Server log verbosity (`LOG_LEVEL`)
+- Ingest concurrency (`INGEST_CONCURRENCY`)
 
 ### 3. Apply DB migrations to Supabase
 
@@ -99,7 +101,7 @@ PROMPT_VERSION=v1.0
 pnpm db:setup
 ```
 
-This runs every file in `supabase/migrations/` in order. ~10 migrations: HNSW vector index, FTS column, all reference tables, RLS + 18 policies, the `search_scenarios` RPC, observability views.
+This runs every file in `supabase/migrations/` in order. HNSW vector index, FTS column, all reference tables, RLS + 18 policies, the `search_scenarios` RPC, observability views, `llm_call_log` for budget tracking, chat-retention pg_cron job.
 
 ### 4. Enable Google OAuth in Supabase
 
@@ -247,7 +249,7 @@ lib/
   utils/                         Hash, logger, errors, assert-server
 
 supabase/
-  migrations/                    11 SQL files, idempotent via pnpm db:setup
+  migrations/                    SQL migrations, idempotent via pnpm db:setup
   config.toml                    (unused at runtime; CLI metadata)
 
 scripts/
@@ -272,6 +274,23 @@ docs/archive/                    Original planning specs (Build-Brief, AI-Archit
 The LLM is the reader, the database is the librarian, the vector is the index card. Blueprints are fetched from Make, surgically cleaned (strip designer/parameter bloat, keep mapper/filter/restore), sent to Claude Sonnet 4.5 which returns a structured JSON analysis (one-line summary, business purpose, data flow, branches, error handling, reuse notes, apps, tags, category, trigger, complexity). The analysis is embedded with OpenAI `text-embedding-3-small` and stored in Postgres alongside the raw JSON + a SHA-256 hash. Queries hit a hybrid retrieval RPC (vector cosine + FTS rank, weighted 0.7/0.3) with optional pre-filters on apps/category/team/complexity. Re-syncs are cheap because the hash check skips analysis when nothing changed (unless `PROMPT_VERSION` bumps).
 
 Full rationale: `DECISIONS.md`. Original planning docs in `docs/archive/`.
+
+---
+
+## Security defaults (what's already on for you)
+
+You're not getting a naked Next.js app — there's defense-in-depth built in:
+
+- **Row Level Security** on every public table. Users can only read their own org's data; admins can only read the orgs they're members of.
+- **Per-user rate limits** on `/api/chat` (30/min), `/api/reuse` (5/min), `/api/search` (60/min). Returns 429 with `Retry-After` header when exceeded.
+- **Daily spend caps** (`DAILY_LLM_BUDGET_USD` + `DAILY_EMBEDDING_BUDGET_USD`) enforced before every paid LLM call. Counts chat + reuse + ingestion together. Defense-in-depth — also set hard caps in the Anthropic + OpenAI dashboards.
+- **Prompt-injection sanitization** on retrieved scenario content before it's inlined into the chat system prompt.
+- **Content-Security-Policy + 5 other security headers** on every response (HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
+- **Storage `blueprints` bucket** is private with a 10MB file cap.
+- **Chat history retention**: nightly pg_cron job deletes `chat_messages` older than 90 days and cascades empty conversations.
+- **Secrets** (`SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`, etc.) are server-only — never exposed to the browser bundle.
+
+Accepted limitations and the full second-pass security review are in `DECISIONS.md` → "Accepted security risks for v1."
 
 ---
 
@@ -303,6 +322,23 @@ SELECT status, error_message, scenario_id
 FROM ingestion_runs
 WHERE started_at > now() - interval '10 minutes' AND status LIKE 'failed%';
 ```
+
+### "429 rate_limited" from `/api/chat` or `/api/reuse`
+Working as intended — per-user sliding-window limits are tuned for normal use. The response includes a `Retry-After: <seconds>` header. If you genuinely need higher limits, edit `lib/rate-limit.ts` (look for `limit: 30` / `limit: 5` in the route handlers).
+
+### "BudgetExceededError" on LLM calls
+You've hit the daily cap (`DAILY_LLM_BUDGET_USD`, default $20). Check today's spend:
+
+```sql
+SELECT
+  (SELECT COALESCE(SUM(llm_cost_usd), 0) FROM ingestion_runs WHERE started_at::date = current_date) AS ingest_usd,
+  (SELECT COALESCE(SUM(cost_usd), 0) FROM llm_call_log WHERE created_at::date = current_date) AS chat_reuse_usd;
+```
+
+Raise the env var if real, or wait until UTC midnight rollover. The internal memoization caches the budget status for 60s, so it can take that long after a config change to see the new ceiling.
+
+### CSP violations in browser console
+If you customize the app to load external resources (e.g. an analytics SDK, a fonts CDN), update `next.config.mjs` → `cspDirectives` to allow them. Dev mode already relaxes the policy enough for Turbopack HMR.
 
 ---
 
