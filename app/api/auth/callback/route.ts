@@ -4,6 +4,8 @@
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { maybeAutoGrantMembership } from '@/lib/auth/auto-grant'
+import { logger } from '@/lib/utils/logger'
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
@@ -30,6 +32,18 @@ export async function GET(req: Request) {
     const back = new URL('/sign-in', url.origin)
     back.searchParams.set('error', error.message)
     return NextResponse.redirect(back)
+  }
+
+  // First-sign-in auto-grant. Best-effort: never blocks the redirect.
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await maybeAutoGrantMembership({ userId: user.id, email: user.email })
+    }
+  } catch (err) {
+    logger.warn('auto-grant attempt failed; user will see "No org access yet"', {
+      error: err instanceof Error ? err.message : String(err),
+    })
   }
 
   // Safety: only allow same-origin redirects in `next` to prevent open-redirect abuse.

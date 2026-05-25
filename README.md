@@ -135,6 +135,15 @@ pnpm tsx scripts/grant-user-org-access.ts \
 
 Refresh the browser. You're now an admin of the org. The **Re-sync** button appears in the top bar.
 
+**Easier path for onboarding teammates** — set these env vars and any matching sign-in auto-grants on first login (no script needed per user). Target org is `MAKE_DEFAULT_ORG_ID`.
+
+```bash
+AUTO_GRANT_DOMAINS=yourcompany.com           # anyone @yourcompany.com → member
+AUTO_GRANT_ADMIN_EMAILS=you@gmail.com        # specific people → admin (any domain)
+```
+
+Admin emails are checked **first** and work for **any** domain — a personal Gmail in `AUTO_GRANT_ADMIN_EMAILS` gets in even if `gmail.com` isn't in `AUTO_GRANT_DOMAINS`. Existing memberships are never overwritten. Users matching neither rule still see "No org access yet."
+
 ### 7. Ingest your scenarios
 
 For a first-time backfill of more than ~30 scenarios, **always run locally** rather than via the UI button:
@@ -340,4 +349,4 @@ All design rationale and the why-not behind alternatives lives in `DECISIONS.md`
 
 ## License
 
-Internal use. Add your own license here when you're ready to share.
+[BSD 3-Clause](./LICENSE) — permissive, attribution-required. Copyright © 2026 Make.com.

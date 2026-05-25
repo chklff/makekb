@@ -1,7 +1,6 @@
 // =========================================================================
 // AUTO-GENERATED. Do not edit by hand.
-// Regenerate via: `pnpm db:types` (calls scripts/generate-types.sh, which runs
-// `supabase gen types typescript --project-id ybabwpbxckqggjxnueeh`).
+// Regenerate via: `pnpm db:types`
 // =========================================================================
 
 export type Json =
@@ -13,8 +12,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
@@ -217,6 +214,39 @@ export type Database = {
           started_at?: string
           status?: string
           trigger?: string
+        }
+        Relationships: []
+      }
+      llm_call_log: {
+        Row: {
+          cost_usd: number
+          created_at: string
+          id: string
+          model: string
+          stage: string
+          tokens_in: number
+          tokens_out: number
+          user_id: string | null
+        }
+        Insert: {
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          model: string
+          stage: string
+          tokens_in?: number
+          tokens_out?: number
+          user_id?: string | null
+        }
+        Update: {
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          model?: string
+          stage?: string
+          tokens_in?: number
+          tokens_out?: number
+          user_id?: string | null
         }
         Relationships: []
       }

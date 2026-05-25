@@ -185,4 +185,35 @@ For our workload (a few hundred LLM calls/month, ~5s/call Anthropic latency), Ed
 
 ---
 
+## 2026-05-23 — Accepted security risks for v1 (documented, deferred to v1.5)
+
+**Status**: Decided
+**Context**: Senior-security review surfaced two known-risk choices we're shipping with. Documenting them so they're not silently inherited or re-litigated.
+
+### Risk 1 — Shared `MAKE_API_TOKEN` reads the whole org
+
+The ingest pipeline uses a single `MAKE_API_TOKEN` for everyone. Whoever owns that token has read access to every scenario in `MAKE_DEFAULT_ORG_ID`, regardless of what Make's own team-level access controls would otherwise restrict. RLS in our DB scopes per-user reads at query time, but the *ingestion* sees and analyses everything.
+
+**Effective threat model**: anyone with **any** membership on this KB can see analyses for every scenario in the org (via the chat / browse / detail surfaces that go through RLS — which is fine), but the LLM has already processed scenarios they wouldn't legitimately see in Make.
+
+**Why accept for v1**: per-user Make OAuth tokens are a significant engineering lift (each user authorizes Make → token storage → per-request token selection in ingestion). Acceptable for an internal-company tool where the KB is treated as "anyone with KB access = org super-admin equivalent".
+
+**v1.5 fix**: per-user Make tokens OR scoped sub-tokens. Tracked in PLAN.md.
+
+### Risk 2 — `AUTO_GRANT_DOMAINS` trusts the email domain blindly
+
+When `AUTO_GRANT_DOMAINS=make.com`, anyone signing in with a `@make.com` Google account gets `member` role automatically. The trust gate is "do they have a working Google login at `@make.com`?" — which depends entirely on Google Workspace deprovisioning being timely.
+
+**Effective threat model**: a deprovisioned ex-employee or sloppily-managed contractor with a `@make.com` mailbox could self-sign-in.
+
+**Why accept for v1**: standard pattern for internal tools. Make.com operates Google Workspace with reasonable deprovisioning hygiene.
+
+**v1.5 fix**: explicit `AUTO_GRANT_ALLOWED_EMAILS` allowlist instead of domain, OR cross-check against Make's user list (a person with KB membership must also exist in `make_users` for the org). Tracked in PLAN.md.
+
+### Mitigated (already done in v1)
+- **Rate limiting** on `/api/chat`, `/api/reuse`, `/api/search` — per-user sliding window, prevents cost-of-breach (see `lib/rate-limit.ts`)
+- **Storage bucket private** — `blueprints/` is service_role only (see `supabase/migrations/20260523000001_blueprints_storage.sql`)
+
+---
+
 ## [Add new decisions below this line]

@@ -9,6 +9,9 @@ import { z } from 'zod'
 import { requireUser, UnauthorizedResponse } from '@/lib/auth/require-session'
 import { createClient } from '@/lib/supabase/server'
 import { generateReuseVariant } from '@/lib/llm/anthropic'
+import { enforceRateLimit } from '@/lib/rate-limit'
+import { assertWithinBudget, logLlmCall } from '@/lib/llm/cost-tracking'
+import { BudgetExceededError } from '@/lib/utils/errors'
 import { logger } from '@/lib/utils/logger'
 
 export const maxDuration = 120
@@ -26,6 +29,10 @@ export async function POST(req: Request) {
     if (e instanceof UnauthorizedResponse) return e.response
     throw e
   }
+
+  // 5 reuses/min per user. Each Sonnet call ≈ $0.05; this caps runaway abuse at ~$15/hr/user.
+  const limited = enforceRateLimit({ key: `reuse:${user.id}`, limit: 5, windowMs: 60_000 })
+  if (limited) return limited
 
   const parsed = Body.safeParse(await req.json().catch(() => null))
   if (!parsed.success) {
@@ -68,12 +75,38 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'blueprint_missing' }, { status: 500 })
   }
 
+  // Daily-budget guardrail. Reuse is the single most expensive route (~$0.05/call).
+  try {
+    await assertWithinBudget('llm')
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      return NextResponse.json(
+        {
+          error: 'daily_budget_exceeded',
+          message: 'Daily LLM budget reached. Resets at UTC midnight.',
+        },
+        { status: 429 },
+      )
+    }
+    throw err
+  }
+
   const t = Date.now()
   try {
     const result = await generateReuseVariant({
       sourceBlueprint: row.blueprint_json,
       sourceAnalysis: row.llm_analysis_json ?? {},
       request: modification_request,
+    })
+
+    // Log to llm_call_log so this counts against the daily budget.
+    await logLlmCall({
+      userId: user.id,
+      stage: 'reuse_generation',
+      model: result.usage.model,
+      tokensIn: result.usage.input_tokens,
+      tokensOut: result.usage.output_tokens,
+      costUsd: result.usage.cost_usd,
     })
 
     logger.info('reuse generated', {

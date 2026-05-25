@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireUser, UnauthorizedResponse } from '@/lib/auth/require-session'
 import { hybridSearch } from '@/lib/retrieval/hybrid-search'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/utils/logger'
 
 const Body = z.object({
@@ -21,12 +22,17 @@ const Body = z.object({
 })
 
 export async function POST(req: Request) {
+  let user
   try {
-    await requireUser()
+    user = await requireUser()
   } catch (e) {
     if (e instanceof UnauthorizedResponse) return e.response
     throw e
   }
+
+  // 60 req/min per user — search is cheap (embedding + SQL) but no reason to flood.
+  const limited = enforceRateLimit({ key: `search:${user.id}`, limit: 60, windowMs: 60_000 })
+  if (limited) return limited
 
   const parsed = Body.safeParse(await req.json().catch(() => null))
   if (!parsed.success) {

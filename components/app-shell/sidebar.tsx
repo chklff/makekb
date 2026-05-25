@@ -49,11 +49,30 @@ export function Sidebar() {
           </div>
           <p className="mt-1 text-muted-foreground">scn-kb-prod</p>
         </div>
-        <button className="ring-make-focus flex w-full items-center justify-center gap-2 rounded-md border border-[hsl(var(--make-purple)/0.12)] px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-[hsl(var(--make-purple)/0.06)] hover:text-foreground">
+        <a
+          href={feedbackMailto()}
+          className="ring-make-focus flex w-full items-center justify-center gap-2 rounded-md border border-[hsl(var(--make-purple)/0.3)] bg-[hsl(var(--make-purple)/0.08)] px-3 py-2 text-sm font-medium text-[hsl(var(--make-purple))] transition-colors hover:bg-[hsl(var(--make-purple)/0.14)]"
+        >
           <MessageCircleQuestion className="size-4" />
           Give feedback
-        </button>
+        </a>
       </div>
     </aside>
   )
+}
+
+function feedbackMailto(): string {
+  const to = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL ?? 'o.chekalov@make.com'
+  const subject = encodeURIComponent('Make Scenario KB feedback')
+  const body = encodeURIComponent(
+    [
+      'What I tried:',
+      '',
+      'What happened vs what I expected:',
+      '',
+      'Browser / page URL (helps a lot):',
+      '',
+    ].join('\n'),
+  )
+  return `mailto:${to}?subject=${subject}&body=${body}`
 }

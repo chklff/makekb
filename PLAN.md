@@ -113,6 +113,10 @@
 - [ ] Slack bot — same chat experience inside Slack
 - [ ] Direct import to Make via API (currently download-only)
 - [ ] Drift detection: alert when `make_updated_at > reanalyzed_at` for >24h
+- [ ] **SEC-H2 — Per-user Make tokens** (replace shared `MAKE_API_TOKEN`). Today the token reads the whole org regardless of who's signed in. See DECISIONS.md "Accepted security risks for v1."
+- [ ] **SEC-H4 — Tighter auto-grant** (`AUTO_GRANT_ALLOWED_EMAILS` explicit allowlist, or cross-check against `make_users`). Today we trust the Google Workspace domain blindly. See DECISIONS.md.
+- [ ] **Per-user roles / permissions** — currently `member` and `admin` are the only roles; both see all org scenarios. Future: scenario-level or team-level scoping inside the KB.
+- [ ] Signed-URL download endpoint for >500KB blueprints offloaded to Storage (bucket is private; today the Adapt panel errors out with `blueprint_in_storage`)
 
 ---
 

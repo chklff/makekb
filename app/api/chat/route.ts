@@ -20,6 +20,9 @@ import { createClient } from '@/lib/supabase/server'
 import { streamChat } from '@/lib/llm/anthropic'
 import { buildChatSystemPrompt } from '@/lib/llm/prompts/chat-system'
 import { hybridSearch, type SearchResult } from '@/lib/retrieval/hybrid-search'
+import { enforceRateLimit } from '@/lib/rate-limit'
+import { assertWithinBudget, logLlmCall } from '@/lib/llm/cost-tracking'
+import { BudgetExceededError } from '@/lib/utils/errors'
 import { logger } from '@/lib/utils/logger'
 
 export const maxDuration = 60
@@ -38,6 +41,11 @@ export async function POST(req: Request) {
     if (e instanceof UnauthorizedResponse) return e.response
     throw e
   }
+
+  // 30 chats/min per user. At ~$0.005/call that's a $9/hour ceiling per user — high enough
+  // that legit testers won't trip it, low enough that a runaway loop is bounded.
+  const limited = enforceRateLimit({ key: `chat:${user.id}`, limit: 30, windowMs: 60_000 })
+  if (limited) return limited
 
   const parsed = Body.safeParse(await req.json().catch(() => null))
   if (!parsed.success) {
@@ -96,21 +104,19 @@ export async function POST(req: Request) {
 
         emit({ type: 'meta', conversation_id: convId, retrieved: results })
 
-        // 5. Build context block
-        const context =
-          results.length === 0
-            ? '(no matching scenarios found in your KB)'
-            : results
-                .map((r, i) => {
-                  return [
-                    `[${i + 1}] ${r.scenario_name} (id=${r.make_scenario_id})`,
-                    `Summary: ${r.one_line_summary ?? '(none)'}`,
-                    `Category: ${r.category ?? '(none)'} · Complexity: ${r.complexity ?? '(none)'}`,
-                    `Apps: ${r.apps_involved.join(', ') || '(none)'}`,
-                    `Match score: ${r.score.toFixed(2)}`,
-                  ].join('\n')
-                })
-                .join('\n\n')
+        // 5. Build the system prompt with sanitized scenario blocks.
+        //    buildChatSystemPrompt() strips dangerous patterns (fake role headers,
+        //    </scenarios> close tags, control chars) — see lib/llm/prompts/chat-system.ts.
+        const scenariosForPrompt = results.map((r, i) => ({
+          index: i + 1,
+          scenario_name: r.scenario_name,
+          one_line_summary: r.one_line_summary,
+          category: r.category,
+          trigger_type: r.trigger_type,
+          trigger_app: r.trigger_app,
+          apps_involved: r.apps_involved,
+          make_scenario_id: r.make_scenario_id,
+        }))
 
         // 6. Conversation history (last 6 turns, oldest first)
         const { data: history } = await supabase
@@ -121,8 +127,19 @@ export async function POST(req: Request) {
           .limit(12)
         const historyMessages = ((history ?? []) as Array<{ role: 'user' | 'assistant'; content: string }>).reverse()
 
-        // 7. Stream answer from Haiku
-        const systemPrompt = buildChatSystemPrompt(context)
+        // 7. Stream answer from Haiku — but first check daily budget.
+        try {
+          await assertWithinBudget('llm')
+        } catch (err) {
+          if (err instanceof BudgetExceededError) {
+            emit({ type: 'error', error: `Daily LLM budget reached. Reset at UTC midnight.` })
+            controller.close()
+            return
+          }
+          throw err
+        }
+
+        const systemPrompt = buildChatSystemPrompt(scenariosForPrompt)
         let fullText = ''
         let lastUsage: { model: string; input_tokens: number; output_tokens: number; cost_usd: number } | null = null
 
@@ -160,6 +177,18 @@ export async function POST(req: Request) {
           .select('id')
           .single()
         const assistantRow = assistantRowRaw as { id: string } | null
+
+        // 8b. Log to llm_call_log so the daily budget counts this call.
+        if (lastUsage) {
+          await logLlmCall({
+            userId: user.id,
+            stage: 'chat_generation',
+            model: lastUsage.model,
+            tokensIn: lastUsage.input_tokens,
+            tokensOut: lastUsage.output_tokens,
+            costUsd: lastUsage.cost_usd,
+          })
+        }
 
         // 9. Bump conversation updated_at + title if first turn
         const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
