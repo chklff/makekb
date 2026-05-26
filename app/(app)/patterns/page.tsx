@@ -15,8 +15,27 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/server'
 import { computePatterns, type Pattern } from '@/lib/clustering/greedy'
+import { PatternsFilterBar, type CategoryFacet } from './filter-bar'
 
 export const dynamic = 'force-dynamic'
+
+function arr(v: string | string[] | undefined): string[] {
+  if (v == null) return []
+  return Array.isArray(v) ? v : [v]
+}
+
+function patternMatchesQuery(p: Pattern, q: string): boolean {
+  if (!q) return true
+  const lower = q.toLowerCase()
+  // Search the seed first (fastest hit), then the rest of the members.
+  if (p.seed.scenario_name?.toLowerCase().includes(lower)) return true
+  if (p.seed.one_line_summary?.toLowerCase().includes(lower)) return true
+  for (const m of p.members) {
+    if (m.scenario_name?.toLowerCase().includes(lower)) return true
+    if (m.one_line_summary?.toLowerCase().includes(lower)) return true
+  }
+  return false
+}
 
 export default async function PatternsPage({
   searchParams,
@@ -26,12 +45,32 @@ export default async function PatternsPage({
   const sp = await searchParams
   const includeDemo = sp.demo !== '0' // default ON for /patterns — different from /browse
   const threshold = Math.max(0.5, Math.min(0.99, Number(sp.threshold ?? 0.85) || 0.85))
+  const q = typeof sp.q === 'string' ? sp.q.trim() : ''
+  const categoryFilter = new Set(arr(sp.category))
 
   const supabase = await createClient()
-  const patterns = await computePatterns(supabase, {
+  const allPatterns = await computePatterns(supabase, {
     threshold,
     minMembers: 2,
     includeSynthetic: includeDemo,
+  })
+
+  // Build category facets from the full result (so chip counts don't shrink as you filter).
+  const categoryCounts = new Map<string, number>()
+  for (const p of allPatterns) {
+    for (const c of p.categories) {
+      categoryCounts.set(c, (categoryCounts.get(c) ?? 0) + 1)
+    }
+  }
+  const categoryFacets: CategoryFacet[] = Array.from(categoryCounts.entries())
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count)
+
+  // Apply filters.
+  const patterns = allPatterns.filter((p) => {
+    if (categoryFilter.size > 0 && !p.categories.some((c) => categoryFilter.has(c))) return false
+    if (q && !patternMatchesQuery(p, q)) return false
+    return true
   })
 
   const totalScenariosInPatterns = patterns.reduce((acc, p) => acc + p.members.length, 0)
@@ -52,7 +91,6 @@ export default async function PatternsPage({
         </p>
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <Stat label="Patterns" value={patterns.length} />
           <Stat label="Scenarios in patterns" value={totalScenariosInPatterns} />
           <Stat label="Real-only" value={realOnly} />
           <Stat label="Synthetic-only" value={synthOnly} />
@@ -60,16 +98,26 @@ export default async function PatternsPage({
         </div>
       </header>
 
+      <PatternsFilterBar
+        categories={categoryFacets}
+        totalPatterns={allPatterns.length}
+        visiblePatterns={patterns.length}
+      />
+
       {patterns.length === 0 ? (
         <Card className="p-8 text-center text-sm text-muted-foreground">
-          <p>
-            No patterns found at threshold {threshold.toFixed(2)}. Either the org has fewer than
-            ~10 scenarios, or scenarios are too dissimilar. Try lowering the threshold:{' '}
-            <Link href="/patterns?threshold=0.75" className="underline">
-              /patterns?threshold=0.75
-            </Link>
-            .
-          </p>
+          {allPatterns.length === 0 ? (
+            <p>
+              No patterns found. Either the org has fewer than ~10 scenarios, or scenarios are too
+              dissimilar. Try a wider grouping:{' '}
+              <Link href="/patterns?threshold=0.75" className="underline">
+                /patterns?threshold=0.75
+              </Link>
+              .
+            </p>
+          ) : (
+            <p>No patterns match the current filters. Clear them to see all {allPatterns.length} patterns.</p>
+          )}
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
