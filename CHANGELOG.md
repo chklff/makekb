@@ -4,7 +4,21 @@ All notable changes to Scenario KB are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project loosely follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] — 2026-05-25 — /patterns page with automatic clustering
+## [0.2.1] — 2026-05-25 — Similar tile + pattern detail + folder picker
+
+Three quality-of-life polishes that close gaps testers would hit on day one.
+
+### Added
+
+- **"Similar scenarios" tile** on `/scenarios/[id]` — top 5 nearest neighbors by cosine similarity. Each row links to the scenario; "See full pattern →" jumps to the new detail page. Shows ≥0.6 similarity only so noise doesn't surface.
+- **`/patterns/[seedId]` detail page** — full member list for one pattern. Side-by-side: members on the left with similarity %, actions panel on the right (Adapt the seed / Open in Make / tune threshold). Threshold controls let you widen or tighten without leaving the page.
+- **Folder picker on Re-sync button** — caret dropdown next to Re-sync. Pulls folders from our `make_folders` table (already populated, no Make API round-trip). Pick a folder → re-sync scopes to that folder only. "All folders (whole org)" is the default. Closes the "today CLI only" gap from v1.5 backlog.
+- **`GET /api/folders`** — admin-only endpoint backing the picker.
+
+### Changed
+
+- Pattern card on `/patterns` now links to the detail page (title + member-count badge + "+N more variants" footer all clickable).
+
 
 The KB now answers the North-Star question — "do we have something like X?" — at the **pattern** level, not just the scenario level.
 

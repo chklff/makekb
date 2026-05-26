@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/server'
 import type { Tables } from '@/lib/supabase/types'
 import { openInMakeUrl } from '@/lib/utils/make-url'
+import { findSimilarToScenario } from '@/lib/retrieval/similar'
 import { AdaptPanel } from './adapt-panel'
 
 export const dynamic = 'force-dynamic'
@@ -56,6 +57,12 @@ export default async function ScenarioDetailPage({
   const branches = Array.isArray(row.branches_summary)
     ? (row.branches_summary as unknown as BranchSummary[])
     : []
+
+  // Fetch top-5 similar scenarios for the "Similar" tile.
+  // Best-effort — if it errors, render the page without the tile.
+  const similar = await findSimilarToScenario(supabase, row.id, { limit: 5, minSimilarity: 0.6 }).catch(
+    () => [],
+  )
 
   // Format reuse_notes as bullets if it contains numbered items, otherwise as plain text.
   const reuseBullets = parseBullets(row.reuse_notes ?? '')
@@ -186,6 +193,45 @@ export default async function ScenarioDetailPage({
             autoOpen={autoOpenAdapt}
           />
 
+          {similar.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Layers2 className="size-4 text-[hsl(var(--make-purple))]" />
+                  Similar scenarios
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5">
+                {similar.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`/scenarios/${s.id}`}
+                    className="ring-make-focus group flex items-start gap-2 rounded p-1.5 -mx-1.5 hover:bg-[hsl(var(--make-purple)/0.04)]"
+                  >
+                    <span className="mt-0.5 shrink-0 font-mono text-[10px] text-muted-foreground">
+                      {Math.round(s.similarity * 100)}%
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-medium text-foreground group-hover:text-[hsl(var(--make-purple))]">
+                        {s.scenario_name}
+                      </span>
+                      {s.one_line_summary && (
+                        <span className="block truncate text-[11px] text-muted-foreground">
+                          {s.one_line_summary}
+                        </span>
+                      )}
+                    </span>
+                  </Link>
+                ))}
+                <Link
+                  href={`/patterns/${row.id}`}
+                  className="ring-make-focus mt-2 block border-t border-[hsl(var(--make-purple)/0.08)] pt-2 text-[11px] font-medium text-[hsl(var(--make-purple))] hover:underline"
+                >
+                  See full pattern →
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

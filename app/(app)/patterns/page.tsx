@@ -47,10 +47,8 @@ export default async function PatternsPage({
           <h1 className="text-2xl font-semibold tracking-tighter">Patterns</h1>
         </div>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Scenarios that solve the same problem with different apps. Automatically discovered by
-          grouping scenarios whose embeddings are within{' '}
-          <span className="font-mono">{threshold.toFixed(2)}</span> cosine similarity. Singletons
-          (one-off scenarios with no near-neighbors) are not shown.
+          Scenarios that solve the same problem with different apps — grouped automatically so you
+          can spot duplicated work across teams. Click any card to see all variants.
         </p>
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -102,13 +100,18 @@ function PatternCard({ p }: { p: Pattern }) {
     <Card className="flex flex-col gap-3 p-5">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
-          <h3 className="text-base font-semibold leading-tight tracking-tightish">
+          <Link
+            href={`/patterns/${seed.id}`}
+            className="ring-make-focus rounded text-base font-semibold leading-tight tracking-tightish hover:text-[hsl(var(--make-purple))] hover:underline"
+          >
             {seed.one_line_summary ?? seed.scenario_name}
-          </h3>
+          </Link>
         </div>
-        <Badge variant="secondary" className="shrink-0">
-          {members.length} scenarios
-        </Badge>
+        <Link href={`/patterns/${seed.id}`} className="shrink-0">
+          <Badge variant="secondary" className="hover:bg-[hsl(var(--make-purple)/0.16)]">
+            {members.length} scenarios
+          </Badge>
+        </Link>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
@@ -175,7 +178,12 @@ function PatternCard({ p }: { p: Pattern }) {
           ))}
         </ul>
         {extra > 0 && (
-          <p className="text-[11px] text-muted-foreground">+ {extra} more variants in this pattern</p>
+          <Link
+            href={`/patterns/${seed.id}`}
+            className="ring-make-focus block rounded text-[11px] font-medium text-[hsl(var(--make-purple))] hover:underline"
+          >
+            + {extra} more variants — see all
+          </Link>
         )}
       </div>
 

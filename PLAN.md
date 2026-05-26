@@ -83,6 +83,18 @@
 
 ---
 
+## v0.2.1 — Similar tile + pattern detail + folder picker ✅ DONE 2026-05-25
+
+> *"Closing day-one usability gaps."*
+
+- [x] "Similar scenarios" tile on `/scenarios/[id]` — top 5 neighbors with similarity %
+- [x] `/patterns/[seedId]` detail page — full member list + threshold tuner + reuse actions
+- [x] Folder picker on Re-sync UI button (closes CLI-only gap)
+- [x] `GET /api/folders` admin endpoint
+- [x] Pattern card on `/patterns` clickable to detail
+
+---
+
 ## v0.2.0 — Pattern clustering UI ✅ DONE 2026-05-25
 
 > *"The North-Star feature: stop rebuilding what already exists."*
@@ -182,7 +194,7 @@
 - [x] ~~Pattern clustering~~ — shipped in v0.2.0
 - [ ] **Conversation history sidebar** — list past chats, click to resume; replaces the removed History button
 - [ ] **Direct import to Make** from the Adapt panel via Make API (today: download JSON, paste manually)
-- [ ] **Folder picker on Re-sync UI button** (today: CLI only via `pnpm ingest:backfill --folder=...`)
+- [x] ~~Folder picker on Re-sync UI button~~ — shipped in v0.2.1
 - [ ] **Storage signed-URL fetch** for >500KB blueprints so the Adapt panel works on huge scenarios (today: errors out with `blueprint_in_storage`)
 - [ ] **Reranker** (Cohere `rerank-v3` or self-hosted BGE) — only if retrieval recall@5 drops below 0.9 on a 30-query eval set
 

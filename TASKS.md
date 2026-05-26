@@ -16,7 +16,6 @@ _(none — v0.1.1 shipped. Waiting on real-tester feedback to pick the next thin
 - [ ] Pattern clustering job (needs ≥100 scenarios)  #backend
 - [ ] Conversation history sidebar (replaces the removed History button)  #ui
 - [ ] Direct import to Make from the Adapt panel (today: download JSON)  #backend
-- [ ] Folder picker on the Re-sync UI button (today: CLI only)  #ui
 - [ ] Signed-URL fetch for >500KB blueprints in Adapt panel  #backend
 
 ### Security follow-ups (deferred from v0.1 review)
@@ -46,6 +45,7 @@ _(none — v0.1.1 shipped. Waiting on real-tester feedback to pick the next thin
 
 <!-- Move completed items here with date. Newest at top. Never delete — it's your build log. -->
 
+- [x] 2026-05-25 — **v0.2.1 — Similar + pattern detail + folder picker.** "Similar scenarios" tile on `/scenarios/[id]` (top 5 by cosine). `/patterns/[seedId]` full member list page with threshold tuner. Folder dropdown next to Re-sync button (caret → pick a folder → scoped sync). `GET /api/folders` admin endpoint. Pattern card on `/patterns` now fully clickable.
 - [x] 2026-05-25 — **v0.2.0 — Pattern clustering UI.** `/patterns` page with greedy nearest-neighbor clustering (cosine ≥ 0.85). Cards show cluster size, category, app variants, top-7 members with similarity %. Tunable `?threshold=` and `?demo=0`. Sidebar Patterns link live. North-Star demo: "do we have something like X?" now answerable at the pattern level.
 - [x] 2026-05-25 — **v0.1.3 — Synthetic data for pattern-clustering prototyping.** `is_synthetic` column + RPC `p_include_synthetic` flag (chat + search default-exclude). `/browse?include_demo=1` shows them. Generator: 25 archetypes × app variant matrix → 500 rows balanced round-robin across 8 categories. Real OpenAI embeddings (~$0.005 total). Verified: within-archetype cosine ≥ 0.91 → clusters form cleanly.
 - [x] 2026-05-25 — **v0.1.2 — Make-native description + interface.** `make_description` + `make_interface` columns on `make_scenarios`. `MakeClient.getScenarioInterface()`. Analysis prompt v1.1: factors human description (treated as highest-trust intent signal). Embedding input doubles description for retrieval weight. FTS column rebuilt with `make_description` at weight A. `PROMPT_VERSION` bumped → v1.1 forces re-analysis on next ingest.

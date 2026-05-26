@@ -2,11 +2,17 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw, X, AlertCircle, Check } from 'lucide-react'
+import { RefreshCw, X, AlertCircle, Check, ChevronDown, FolderTree } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 type Phase = 'idle' | 'discovering' | 'syncing' | 'done' | 'error'
+
+interface FolderOption {
+  make_folder_id: string
+  folder_name: string | null
+  team_name: string | null
+}
 
 interface State {
   phase: Phase
@@ -37,6 +43,12 @@ export function ResyncButton() {
   const [state, setState] = useState<State>(INITIAL)
   const abortRef = useRef<AbortController | null>(null)
 
+  // Folder picker state
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [folders, setFolders] = useState<FolderOption[] | null>(null)
+  const [selectedFolder, setSelectedFolder] = useState<FolderOption | null>(null)
+  const [foldersLoading, setFoldersLoading] = useState(false)
+
   // Auto-dismiss successful runs after 8s.
   useEffect(() => {
     if (state.phase !== 'done' || state.failed > 0) return
@@ -44,19 +56,54 @@ export function ResyncButton() {
     return () => clearTimeout(t)
   }, [state.phase, state.failed])
 
+  // Close picker on outside click
+  useEffect(() => {
+    if (!pickerOpen) return
+    function onClick(e: MouseEvent) {
+      const t = e.target as HTMLElement
+      if (!t.closest('[data-resync-picker]')) setPickerOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [pickerOpen])
+
+  // Lazy-load folder list the first time the picker opens.
+  async function openPicker() {
+    setPickerOpen((v) => !v)
+    if (folders !== null || foldersLoading) return
+    setFoldersLoading(true)
+    try {
+      const resp = await fetch('/api/folders')
+      if (resp.ok) {
+        const j = (await resp.json()) as { folders: FolderOption[] }
+        setFolders(j.folders ?? [])
+      } else {
+        setFolders([])
+      }
+    } catch {
+      setFolders([])
+    } finally {
+      setFoldersLoading(false)
+    }
+  }
+
   const isActive = state.phase === 'discovering' || state.phase === 'syncing'
 
   async function start() {
     if (isActive) return
     setState({ ...INITIAL, phase: 'discovering' })
+    setPickerOpen(false)
 
     const ctrl = new AbortController()
     abortRef.current = ctrl
     try {
+      const body: Record<string, unknown> = { limit: 50, concurrency: 3 }
+      if (selectedFolder) body.folder_id = selectedFolder.make_folder_id
+
       const resp = await fetch('/api/ingest/batch', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ limit: 50, concurrency: 3 }),
+        body: JSON.stringify(body),
         signal: ctrl.signal,
       })
       if (!resp.ok || !resp.body) {
@@ -121,10 +168,77 @@ export function ResyncButton() {
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={start} disabled={isActive}>
-        <RefreshCw className={cn('size-4', isActive && 'animate-spin')} />
-        {isActive ? 'Re-syncing…' : 'Re-sync'}
-      </Button>
+      <div className="relative inline-flex items-center gap-1" data-resync-picker>
+        <Button variant="outline" size="sm" onClick={start} disabled={isActive}>
+          <RefreshCw className={cn('size-4', isActive && 'animate-spin')} />
+          {isActive
+            ? 'Re-syncing…'
+            : selectedFolder
+              ? `Re-sync ${selectedFolder.folder_name ?? 'folder'}`
+              : 'Re-sync'}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="px-1.5"
+          onClick={openPicker}
+          disabled={isActive}
+          aria-label="Pick folder"
+          title="Scope re-sync to a folder"
+        >
+          <ChevronDown className="size-3.5" />
+        </Button>
+
+        {pickerOpen && (
+          <div className="absolute right-0 top-full z-50 mt-1 w-72 rounded-lg border border-[hsl(var(--make-purple)/0.16)] bg-card p-2 shadow-make-md">
+            <button
+              onClick={() => {
+                setSelectedFolder(null)
+                setPickerOpen(false)
+              }}
+              className={cn(
+                'ring-make-focus flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-[hsl(var(--make-purple)/0.06)]',
+                !selectedFolder && 'bg-[hsl(var(--make-purple)/0.08)] font-medium text-[hsl(var(--make-purple))]',
+              )}
+            >
+              <FolderTree className="size-3.5" />
+              All folders (whole org)
+            </button>
+            <div className="my-1 h-px bg-[hsl(var(--make-purple)/0.08)]" />
+            {foldersLoading && (
+              <p className="px-2 py-2 text-[11px] text-muted-foreground">Loading folders…</p>
+            )}
+            {!foldersLoading && folders !== null && folders.length === 0 && (
+              <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                No folders ingested yet. Run the first sync against the whole org.
+              </p>
+            )}
+            {!foldersLoading && folders && folders.length > 0 && (
+              <div className="max-h-72 overflow-y-auto">
+                {folders.map((f) => (
+                  <button
+                    key={f.make_folder_id}
+                    onClick={() => {
+                      setSelectedFolder(f)
+                      setPickerOpen(false)
+                    }}
+                    className={cn(
+                      'ring-make-focus flex w-full flex-col gap-0.5 rounded px-2 py-1.5 text-left text-xs hover:bg-[hsl(var(--make-purple)/0.06)]',
+                      selectedFolder?.make_folder_id === f.make_folder_id &&
+                        'bg-[hsl(var(--make-purple)/0.08)] font-medium text-[hsl(var(--make-purple))]',
+                    )}
+                  >
+                    <span className="truncate">{f.folder_name ?? `Folder ${f.make_folder_id}`}</span>
+                    {f.team_name && (
+                      <span className="truncate text-[10px] text-muted-foreground">{f.team_name}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {state.phase !== 'idle' && (
         <ResyncBanner state={state} onCancel={cancel} onDismiss={dismiss} />
