@@ -4,10 +4,11 @@ A semantic knowledge base over your Make.com scenarios.
 
 - **Ask in plain English** — "do we already have a scenario that syncs HubSpot deals to Facebook CAPI?" — get a grounded answer with citations
 - **Browse + filter** — search by app, team, complexity, match score
+- **Patterns** — auto-grouped scenarios that solve the same problem with different apps, so you stop rebuilding what already exists
 - **Adapt with AI** — "swap HubSpot for Pipedrive, keep everything else" → downloadable variant blueprint
 - **One sync button** — pull the latest scenarios from Make, hash-deduped so re-syncs are cheap
 
-Built for internal company use. Self-hosted on Vercel + Supabase. ~$60/month all-in for a 500-scenario org.
+Built for internal company use. Self-hosted on Vercel + Supabase. ~$85/month all-in for a 500-scenario org.
 
 ---
 
@@ -51,16 +52,15 @@ Built for internal company use. Self-hosted on Vercel + Supabase. ~$60/month all
 
 Five accounts. Free tiers are fine to evaluate, paid for real use.
 
-1. **Make.com** — an account with at least one organization. You need an API token (Profile → API/MCP Access → Token) with these scopes:
-   - `organizations:read`, `teams:read`, `scenarios:read`, `scenarios-folders:read`
-2. **Supabase** — a fresh project. Note the project URL and the `service_role` + `anon` keys.
-3. **Anthropic** — API key, with access to `claude-sonnet-4-5` and `claude-haiku-4-5`.
-4. **OpenAI** — API key, with the `text-embedding-3-small` model enabled in your project's allowed-models list.
+1. **Make.com** — an account with at least one organization. You need an API token (Profile → API/MCP Access → Token) with these scopes: `organizations:read`, `teams:read`, `scenarios:read`, `scenarios-folders:read`.
+2. **Supabase** — a fresh project. Note the project URL + `service_role` + `anon` keys + direct DB connection string.
+3. **Anthropic** — API key with access to `claude-sonnet-4-5` and `claude-haiku-4-5`.
+4. **OpenAI** — API key with `text-embedding-3-small` enabled in your project's allowed-models list.
 5. **Google Cloud Console** — for OAuth (Supabase Auth federates to Google). You'll create an OAuth Client ID.
 
-Budget for the LLM costs:
-- Ingesting 500 scenarios end-to-end: ~$16 one-time
-- Monthly re-sync (assuming ~10% change): ~$2
+LLM cost budget:
+- Initial backfill of 500 scenarios: ~$8 one-time
+- Monthly re-sync (~10% drift): ~$2
 - Per chat message (Haiku): ~$0.005
 - Per "Adapt with AI" call (Sonnet): ~$0.05
 
@@ -68,12 +68,12 @@ Budget for the LLM costs:
 
 ## Install — from `git clone` to your first answer
 
-Six steps. ~20 minutes total.
+~20 minutes total.
 
 ### 1. Clone + install
 
 ```bash
-git clone  https://github.com/chklff/makekb makekb
+git clone https://github.com/chklff/makekb makekb
 cd makekb
 pnpm install
 ```
@@ -84,7 +84,7 @@ pnpm install
 cp .env.example .env.local
 ```
 
-`.env.example` is the source of truth — open `.env.local` and fill in the values it lists. The required keys:
+`.env.example` is the source of truth. Required keys:
 
 ```bash
 # Supabase (dashboard → Project Settings → API)
@@ -103,89 +103,74 @@ OPENAI_API_KEY=sk-proj-...
 # Make
 MAKE_API_TOKEN=...
 MAKE_API_BASE_URL=https://eu1.make.com/api/v2     # or https://us1.make.com/api/v2
-MAKE_WEB_BASE_URL=https://eu1.make.com            # for "Open in Make" links; match region above
 MAKE_DEFAULT_ORG_ID=12345                          # your Make org's numeric id
 ```
 
-Optional (covered in `.env.example` with defaults that work out of the box):
-- Pinned model versions (`LLM_MODEL_*`, `EMBEDDING_MODEL`, `PROMPT_VERSION`)
-- Daily spend caps (`DAILY_LLM_BUDGET_USD`, `DAILY_EMBEDDING_BUDGET_USD`)
-- Auto-grant on first sign-in (`AUTO_GRANT_DOMAINS`, `AUTO_GRANT_ADMIN_EMAILS`) — see step 6
-- Feedback email override (`NEXT_PUBLIC_FEEDBACK_EMAIL`)
-- Server log verbosity (`LOG_LEVEL`)
-- Ingest concurrency (`INGEST_CONCURRENCY`)
+`MAKE_WEB_BASE_URL` is **not** required — auto-derived from `MAKE_API_BASE_URL` (strips `/api/v2`). Only set it if your Make web UI is on a different host than your API.
 
-### 3. Apply DB migrations to Supabase
+Optional env vars are documented in `.env.example` with sensible defaults: model pinning, daily spend caps, auto-grant for first sign-in, feedback email override, log verbosity, ingest concurrency.
+
+### 3. Apply DB migrations
 
 ```bash
 pnpm db:setup
 ```
 
-This runs every file in `supabase/migrations/` in order. HNSW vector index, FTS column, all reference tables, RLS + 18 policies, the `search_scenarios` RPC, observability views, `llm_call_log` for budget tracking, chat-retention pg_cron job.
+Runs every file in `supabase/migrations/` in order. Sets up HNSW vector index, FTS column, all reference tables, RLS policies, the `search_scenarios` RPC, observability views, `llm_call_log` for budget tracking, and the chat-retention pg_cron job.
 
-### 4. Enable Google OAuth in Supabase
+### 4. Enable Google OAuth
 
-Two dashboards, one-time. The trick: **Google** only cares about the Supabase callback. **Supabase** is what redirects back to your app — so your app URL goes in Supabase, not Google.
+Two dashboards, one-time. **Google** only cares about the Supabase callback. **Supabase** is what redirects back to your app — so your app URL goes in Supabase, not Google.
 
 **Google Cloud Console** → `https://console.cloud.google.com/apis/credentials`
 - Create OAuth Client ID → **Web application**
-- Authorized JavaScript origins: leave empty (Supabase doesn't need it)
 - **Authorized redirect URI** (the only one Google needs):
   `https://<your-supabase-project>.supabase.co/auth/v1/callback`
 - Copy the Client ID + Client Secret
 
-**Supabase dashboard** → `Authentication → Providers → Google`
-- Enable, paste the Client ID + Secret, save
+**Supabase dashboard** → `Authentication → Providers → Google` → enable, paste Client ID + Secret.
 
-**Supabase dashboard** → `Authentication → URL Configuration`
-- **Site URL**: `http://localhost:3000` (you'll change this once you deploy — see [Deploy to production](#deploy-to-production))
+**Supabase dashboard** → `Authentication → URL Configuration`:
+- **Site URL**: `http://localhost:3000` (you'll change this after you deploy)
 - **Redirect URLs** (whitelist — add all that apply):
-  - `http://localhost:3000/api/auth/callback` (local dev)
-  - `https://<your-production-domain>/api/auth/callback` (after deploy)
-  - `https://<vercel-preview-pattern>.vercel.app/api/auth/callback` (optional — for preview branches; pattern supports wildcards like `https://makekb-*-yourorg.vercel.app/api/auth/callback`)
+  - `http://localhost:3000/api/auth/callback`
+  - `https://<your-prod-domain>/api/auth/callback` (after deploy)
 
-If you skip the Redirect URLs whitelist step, Supabase will reject the OAuth callback and you'll land on the sign-in page in a loop with no error visible to the user.
+Skip the Redirect URLs whitelist and Supabase rejects the callback — you'll loop on the sign-in page with no visible error.
 
-### 5. Sign in once
+### 5. Set up auto-grant (recommended)
 
-```bash
-pnpm dev
-```
-
-Open `http://localhost:3000/sign-in`, click **Continue with Google**. You'll land on the app showing **"No org access yet"** — that's expected. You now have an `auth.users` row but no org membership.
-
-### 6. Bootstrap your admin membership
-
-```bash
-pnpm tsx scripts/grant-user-org-access.ts \
-  --email=you@company.com \
-  --make_org_id=12345 \
-  --role=admin
-```
-
-Refresh the browser. You're now an admin of the org. The **Re-sync** button appears in the top bar.
-
-**Easier path for onboarding teammates** — set these env vars and any matching sign-in auto-grants on first login (no script needed per user). Target org is `MAKE_DEFAULT_ORG_ID`.
+In `.env.local`:
 
 ```bash
 AUTO_GRANT_DOMAINS=yourcompany.com           # anyone @yourcompany.com → member
 AUTO_GRANT_ADMIN_EMAILS=you@gmail.com        # specific people → admin (any domain)
 ```
 
-Admin emails are checked **first** and work for **any** domain — a personal Gmail in `AUTO_GRANT_ADMIN_EMAILS` gets in even if `gmail.com` isn't in `AUTO_GRANT_DOMAINS`. Existing memberships are never overwritten. Users matching neither rule still see "No org access yet."
+First sign-in matches against these and creates the `user_org_memberships` row automatically — no per-user script needed. Admin emails work across any domain (Gmail too).
+
+Skipping this means every new user lands on "No org access yet" and an admin has to run `scripts/grant-user-org-access.ts` to bootstrap them.
+
+### 6. Run + sign in
+
+```bash
+pnpm dev
+```
+
+Open `http://localhost:3000`, click **Sign in with Google**. With auto-grant configured, you land on `/chat` as an admin. The **Re-sync** button appears in the top bar.
 
 ### 7. Ingest your scenarios
 
-For a first-time backfill of more than ~30 scenarios, **always run locally** rather than via the UI button:
+For a first-time backfill, run locally (CLI bypasses HTTP timeouts):
 
 ```bash
 pnpm ingest:backfill --limit=10     # smoke test
 pnpm ingest:backfill                # the whole org
 ```
 
-Why local? The CLI bypasses HTTP timeouts and uses parallel workers. ~6 seconds per scenario, ~$0.03 each. A 500-scenario org takes ~10 minutes and costs ~$16.
+~6 seconds per scenario, ~$0.014 each. A 500-scenario org takes ~10 minutes and costs ~$8.
 
-Once you're past the first backfill, the **Re-sync** button in the UI handles ad-hoc top-ups (up to 50 scenarios at a time) with a live progress bar.
+Once past the first backfill, the **Re-sync** button in the UI handles incremental syncs.
 
 ---
 
@@ -199,9 +184,9 @@ Once you're past the first backfill, the **Re-sync** button in the UI handles ad
    - Redirect URLs: add `https://<your-prod-url>/api/auth/callback` (keep `http://localhost:3000/api/auth/callback` too)
 5. Set hard monthly caps in Anthropic + OpenAI dashboards as a second layer beyond `DAILY_LLM_BUDGET_USD`.
 
-**Access control:** only emails matching `AUTO_GRANT_DOMAINS` get org membership — everyone else hits "No org access yet" and sees nothing. Google Cloud Console doesn't need updating: Google only sees the Supabase callback.
+**Access control:** only emails matching `AUTO_GRANT_DOMAINS` (or `AUTO_GRANT_ADMIN_EMAILS`) get org membership — everyone else hits "No org access yet" and sees nothing. Google Cloud Console doesn't need updating: Google only sees the Supabase callback.
 
-**Vercel Pro** ($20/mo) needed only if `/api/ingest/batch` hits the free-tier 10s timeout (it's set to 300s).
+**Vercel Pro** ($20/mo) is needed only if `/api/ingest/batch` hits the free-tier 10s timeout (the route is set to `maxDuration = 300`).
 
 ---
 
@@ -211,7 +196,7 @@ Once you're past the first backfill, the **Re-sync** button in the UI handles ad
 
 > "do we have a scenario that syncs HubSpot deals to Facebook CAPI?"
 
-Returns a streaming answer with inline `[1]` `[2]` citation pills + source cards. Click **Reuse** on any card → lands on the detail page with the Adapt panel auto-focused.
+Streaming answer with inline `[1]` `[2]` citation pills + source cards. Click any source → opens the scenario detail.
 
 ### `/browse` — see everything
 
@@ -220,19 +205,23 @@ Returns a streaming answer with inline `[1]` `[2]` citation pills + source cards
 - Match-score slider when searching: only show results ≥ X%
 - URL-shareable: `/browse?q=webhook&app=gateway&complexity=simple`
 
+### `/patterns` — auto-discovered duplicate work
+
+Scenarios that solve the same problem with different apps, grouped automatically. Each card shows the cleanest example plus all variants (e.g. "HubSpot → Slack alert" + "Salesforce → Slack alert" + "Pipedrive → Slack alert" cluster under one pattern). Click any card to drill into the full member list with side-by-side variants. **Reuse →** opens the cleanest one in Adapt mode.
+
 ### `/scenarios/[id]` — detail + adapt
 
 Two-column page:
-- **Left**: business purpose, data flow (step-by-step), branches, error handling, **Reuse notes** (the warning-amber block that tells you what to change)
-- **Right**: actions (Open in Make, Adapt), the **Adapt with AI** panel, at-a-glance metadata, tags
+- **Left**: business purpose, data flow (step-by-step), branches, error handling, **Reuse notes** (the amber-warning block that tells you what to change)
+- **Right**: actions (Open in Make, Adapt), the **Adapt with AI** panel, **Similar scenarios** tile (top 5 nearest neighbors with cosine % pills), at-a-glance metadata, tags
 
-In the Adapt panel: describe a change ("swap HubSpot for Pipedrive"), click **Generate variant**. Sonnet 4.5 returns a new valid Make.com blueprint JSON + change summary + warnings about what you should review before importing. Download → import into Make.
+In the Adapt panel: describe a change ("swap HubSpot for Pipedrive"), click **Generate variant**. Sonnet 4.5 returns a new valid Make.com blueprint JSON + change summary + warnings. Download → import into Make.
 
 ### Re-sync (admin only)
 
-Top bar → **Re-sync** button. Pulls scenarios from Make, ingests new/changed ones (hash-deduped, so unchanged scenarios skip the LLM call). Live progress bar shows what's happening.
+Top bar → **Re-sync** button → optional folder picker dropdown → pulls scenarios from Make and ingests new/changed ones (hash-deduped, so unchanged scenarios skip the LLM call). Live progress bar.
 
-For a folder-scoped sync from the terminal:
+For terminal-driven scoped sync:
 
 ```bash
 pnpm ingest:backfill --folder=305301        # only that folder's scenarios
@@ -254,8 +243,10 @@ pnpm ingest:backfill --scenario=4594302     # one specific scenario
 | `pnpm db:setup` | Apply all SQL migrations to your Supabase project |
 | `pnpm db:types` | Regenerate `lib/supabase/types.ts` from the live schema |
 | `pnpm ingest:backfill` | Bulk-ingest scenarios. Flags: `--limit`, `--team`, `--folder`, `--scenario`, `--concurrency` |
+| `pnpm synth:generate` | Seed 500 synthetic scenarios across 25 archetypes for prototyping `/patterns` |
+| `pnpm synth:purge` | Delete all rows where `is_synthetic = true` |
 | `pnpm tsx scripts/refresh-meta.ts` | Update org/team/folder names from Make (no LLM cost) |
-| `pnpm tsx scripts/grant-user-org-access.ts --email=… --make_org_id=… [--role=admin]` | Bootstrap user → org membership |
+| `pnpm tsx scripts/grant-user-org-access.ts --email=… --make_org_id=… [--role=admin]` | Manual user → org membership bootstrap (fallback when auto-grant doesn't fit) |
 | `pnpm tsx scripts/test-search.ts "<query>"` | Smoke-test retrieval from CLI |
 | `pnpm tsx scripts/test-reuse.ts <uuid> "<request>"` | Smoke-test the Adapt pipeline |
 
@@ -269,7 +260,9 @@ app/
   (app)/                         Protected routes (require session)
     chat/                        Streaming chat with citations
     browse/                      Search + filters + match slider
-    scenarios/[id]/              Detail page + Adapt panel
+    patterns/                    Cluster grid + pattern detail
+    scenarios/[id]/              Detail page + Adapt panel + similar-scenarios tile
+    changelog/                   Renders CHANGELOG.md
   api/
     auth/                        Supabase OAuth callback + sign-out
     chat/                        POST, NDJSON-streaming RAG answer
@@ -277,10 +270,11 @@ app/
     reuse/                       POST, Sonnet variant generation
     ingest/scenario|batch|…/     Ingestion endpoints (admin)
     health/                      Public
+  not-found.tsx                  Branded 404
 
 components/
-  ui/                            shadcn primitives (Button, Card, Input, Badge)
-  app-shell/                     TopBar, Sidebar, ResyncButton, UserMenu
+  ui/                            shadcn primitives (Button, Card, Input, Badge, Dropdown)
+  app-shell/                     TopBar, Sidebar, ResyncButton (+ folder picker), UserMenu
   brand/                         MakeLogo
 
 lib/
@@ -289,8 +283,9 @@ lib/
   make/                          Make.com API client + blueprint cleaner
   ingest/run-scenario.ts         Shared core: fetch → clean → analyze → embed → upsert
   retrieval/hybrid-search.ts     Wraps the search_scenarios SQL RPC
-  auth/                          Session + admin guards + user-context loader
-  utils/                         Hash, logger, errors, assert-server
+  clustering/greedy.ts           Greedy nearest-neighbor clustering for /patterns
+  auth/                          Session + admin guards + user-context loader + auto-grant
+  utils/                         Hash, logger, errors, assert-server, make-url, version
 
 supabase/
   migrations/                    SQL migrations, idempotent via pnpm db:setup
@@ -300,7 +295,8 @@ scripts/
   setup-db.ts                    Migration runner
   backfill.ts                    Bulk ingest
   refresh-meta.ts                Org/team/folder name refresh
-  grant-user-org-access.ts       Membership bootstrap
+  grant-user-org-access.ts       Manual membership bootstrap
+  generate-synthetic-scenarios.ts  Demo data for /patterns prototyping
   test-search.ts | test-reuse.ts CLI smoke tests
   generate-types.sh              Regenerate Supabase types
 
@@ -308,14 +304,17 @@ tests/
   unit/clean-blueprint.test.ts
   unit/hash.test.ts
 
-docs/archive/                    Original planning specs (Build-Brief, AI-Architecture)
+docs/
+  TESTERS.md                     5-step paste-into-Slack onboarding guide for testers
+  screenshots/                   PNGs referenced by this README
+  archive/                       Original planning specs (Build-Brief, AI-Architecture)
 ```
 
 ---
 
 ## Architecture in one paragraph
 
-The LLM is the reader, the database is the librarian, the vector is the index card. Blueprints are fetched from Make alongside the author's free-text `description` (from scenario settings) and the `/scenarios/{id}/interface` payload (webhook + sub-scenario I/O). The blueprint is surgically cleaned (strip designer/parameter bloat, keep mapper/filter/restore) and sent to Claude Sonnet 4.5 along with the human description as the highest-trust intent signal. Sonnet returns a structured JSON analysis (one-line summary, business purpose, data flow, branches, error handling, reuse notes, apps, tags, category, trigger, complexity). The analysis text is embedded with OpenAI `text-embedding-3-small` — when a human description exists it's prepended twice so the author's own words dominate the vector. Stored in Postgres alongside the raw JSON + a SHA-256 hash. Queries hit a hybrid retrieval RPC (vector cosine + FTS rank, weighted 0.7/0.3) with optional pre-filters on apps/category/team/complexity. Re-syncs are cheap because the hash check skips analysis when nothing changed (unless `PROMPT_VERSION` bumps).
+The LLM is the reader, the database is the librarian, the vector is the index card. Blueprints are fetched from Make alongside the author's free-text `description` (from scenario settings) and the `/scenarios/{id}/interface` payload (webhook + sub-scenario I/O). The blueprint is surgically cleaned (strip designer/parameter bloat, keep mapper/filter/restore) and sent to Claude Sonnet 4.5 along with the human description as the highest-trust intent signal. Sonnet returns a structured JSON analysis (one-line summary, business purpose, data flow, branches, error handling, reuse notes, apps, tags, category, trigger, complexity). The analysis text is embedded with OpenAI `text-embedding-3-small` — when a human description exists it's prepended twice so the author's own words dominate the vector. Stored in Postgres alongside the raw JSON + a SHA-256 hash. Queries hit a hybrid retrieval RPC (vector cosine + FTS rank, weighted 0.7/0.3) with optional pre-filters on apps/category/team/complexity. Patterns are computed at request time with greedy nearest-neighbor clustering (cosine ≥ 0.85 = same pattern). Re-syncs are cheap because the hash check skips analysis when nothing changed (unless `PROMPT_VERSION` bumps).
 
 Full rationale: `DECISIONS.md`. Original planning docs in `docs/archive/`.
 
@@ -323,40 +322,45 @@ Full rationale: `DECISIONS.md`. Original planning docs in `docs/archive/`.
 
 ## Security defaults (what's already on for you)
 
-You're not getting a naked Next.js app — there's defense-in-depth built in:
+Defense-in-depth built in:
 
 - **Row Level Security** on every public table. Users can only read their own org's data; admins can only read the orgs they're members of.
-- **Per-user rate limits** on `/api/chat` (30/min), `/api/reuse` (5/min), `/api/search` (60/min). Returns 429 with `Retry-After` header when exceeded.
+- **Per-user rate limits** on `/api/chat` (30/min), `/api/reuse` (5/min), `/api/search` (60/min). 429 with `Retry-After` header when exceeded.
 - **Daily spend caps** (`DAILY_LLM_BUDGET_USD` + `DAILY_EMBEDDING_BUDGET_USD`) enforced before every paid LLM call. Counts chat + reuse + ingestion together. Defense-in-depth — also set hard caps in the Anthropic + OpenAI dashboards.
 - **Prompt-injection sanitization** on retrieved scenario content before it's inlined into the chat system prompt.
 - **Content-Security-Policy + 5 other security headers** on every response (HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
 - **Storage `blueprints` bucket** is private with a 10MB file cap.
 - **Chat history retention**: nightly pg_cron job deletes `chat_messages` older than 90 days and cascades empty conversations.
 - **Secrets** (`SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`, etc.) are server-only — never exposed to the browser bundle.
+- **Synthetic data** (if you ran `pnpm synth:generate`) is excluded from `/chat` and `/api/search` so demo rows never appear as citations in real answers. `/browse` hides them too unless you opt in via `?include_demo=1`.
 
-Accepted limitations and the full second-pass security review are in `DECISIONS.md` → "Accepted security risks for v1."
+Accepted limitations and the full second-pass security review are in `DECISIONS.md` → "Accepted security risks."
 
 ---
 
 ## Troubleshooting
 
 ### "OPENAI_API_KEY is not set" in API routes
-The OpenAI / Anthropic SDKs are now lazy-initialized in `lib/llm/*.ts`. If you still see this, your `.env.local` isn't being loaded by Next.js. Make sure the file is in the project root (not a subdirectory) and restart `pnpm dev`.
+The OpenAI / Anthropic SDKs are lazy-initialized. If you still see this, your `.env.local` isn't being loaded by Next.js. Make sure the file is in the project root and restart `pnpm dev`.
 
 ### "403 Project does not have access to model `text-embedding-3-small`"
 Your OpenAI project's allowed-models list doesn't include embeddings. Fix at https://platform.openai.com/settings/organization/projects → your project → **Limits** → enable the model.
 
 ### "permission denied for table ingestion_runs"
-The `service_role` grant migration didn't run. Re-run `pnpm db:setup` — migration `20260521000011_grant_service_role_privileges.sql` adds it.
+The `service_role` grant migration didn't run. Re-run `pnpm db:setup`.
 
 ### "No org access yet" after sign-in
-Expected on first login. Run `pnpm tsx scripts/grant-user-org-access.ts --email=… --make_org_id=… --role=admin`, then refresh.
+Either `AUTO_GRANT_DOMAINS` / `AUTO_GRANT_ADMIN_EMAILS` doesn't include this email, or you skipped setting them. Add the email/domain and re-sign in, or fall back to:
+
+```bash
+pnpm tsx scripts/grant-user-org-access.ts --email=… --make_org_id=… --role=admin
+```
 
 ### Adapt panel says "blueprint_in_storage"
-The scenario's blueprint is >500KB and was offloaded to Supabase Storage. v1 doesn't fetch from Storage for Adapt; inspect the original in Make. v1.5 will handle this.
+The scenario's blueprint is >500KB and was offloaded to Supabase Storage. The current Adapt implementation doesn't fetch from Storage — inspect the original in Make instead.
 
-### "url.parse() deprecation warning" floods the console
-Harmless — a transitive dep uses the legacy API on Node 22+. The `pnpm dev` script already suppresses it via `NODE_OPTIONS=--no-deprecation`. If you ran via plain `next dev` you'll see it.
+### Open-in-Make URL looks wrong
+Region must match. Set `MAKE_API_BASE_URL` correctly (`https://us1.make.com/api/v2` or `https://eu1.make.com/api/v2`) — `MAKE_WEB_BASE_URL` auto-derives from it. If `MAKE_WEB_BASE_URL` is set explicitly, it overrides.
 
 ### Re-sync shows "N failed" with no detail
 Check `ingestion_runs` in Supabase:
@@ -368,7 +372,7 @@ WHERE started_at > now() - interval '10 minutes' AND status LIKE 'failed%';
 ```
 
 ### "429 rate_limited" from `/api/chat` or `/api/reuse`
-Working as intended — per-user sliding-window limits are tuned for normal use. The response includes a `Retry-After: <seconds>` header. If you genuinely need higher limits, edit `lib/rate-limit.ts` (look for `limit: 30` / `limit: 5` in the route handlers).
+Working as intended — per-user sliding-window limits. Response includes `Retry-After: <seconds>`. If you need higher limits, edit `lib/rate-limit.ts`.
 
 ### "BudgetExceededError" on LLM calls
 You've hit the daily cap (`DAILY_LLM_BUDGET_USD`, default $20). Check today's spend:
@@ -379,14 +383,14 @@ SELECT
   (SELECT COALESCE(SUM(cost_usd), 0) FROM llm_call_log WHERE created_at::date = current_date) AS chat_reuse_usd;
 ```
 
-Raise the env var if real, or wait until UTC midnight rollover. The internal memoization caches the budget status for 60s, so it can take that long after a config change to see the new ceiling.
+Raise the env var or wait for UTC midnight. The internal cache holds the budget status for 60s.
 
 ### CSP violations in browser console
-If you customize the app to load external resources (e.g. an analytics SDK, a fonts CDN), update `next.config.mjs` → `cspDirectives` to allow them. Dev mode already relaxes the policy enough for Turbopack HMR.
+If you load external resources (analytics SDK, fonts CDN), update `next.config.mjs` → `cspDirectives`. Dev mode already relaxes the policy for Turbopack HMR.
 
 ---
 
-## Cost estimate (real numbers)
+## Cost estimate
 
 For a 500-scenario org, moderate usage:
 
@@ -396,34 +400,37 @@ For a 500-scenario org, moderate usage:
 | 200 chat msgs/day (Haiku) | ~$30 |
 | 5 reuse generations/day (Sonnet) | ~$9 |
 | Supabase Pro | $25 |
-| Vercel Pro (if you need it for `maxDuration: 300`) | $20 |
+| Vercel Pro (if needed for `maxDuration: 300`) | $20 |
 | **Total** | **~$85/month** |
 
 One-time:
-- 500-scenario initial backfill: ~$16
+- 500-scenario initial backfill: ~$8
 
-For a 50-scenario org, divide by ~10.
+Patterns are computed from cached embeddings at request time — no extra LLM cost. For a 50-scenario org, divide all numbers by ~10.
 
 ---
 
 ## Roadmap
 
-See `PLAN.md` for milestone status. Currently at end of M3.5 — chat + reuse + browse all working.
+See `PLAN.md` for milestone status. Current version: **v0.2.1**. All M1-M3 surfaces shipped (chat, browse, patterns, adapt, ingest, sync), security hardening pass complete, deployable.
 
-Open backlog (v1.5):
-- Pattern clustering (the second-order layer — once you have 100+ scenarios)
-- Multi-tenant invite flow (currently: admin grants via script)
-- Conversation history sidebar (the "History" button is decorative)
-- Direct import-to-Make from the Adapt panel (currently: download JSON, paste in Make)
-- Folder picker on the Re-sync UI button (currently: CLI only)
+Open backlog:
+- **Multi-tenant invite flow** (currently: admin grants via env auto-grant or script)
+- **Conversation history sidebar** (resume past chats — replaces the removed History button)
+- **Direct import to Make** from the Adapt panel (currently: download JSON, paste in Make)
+- **Storage signed-URL fetch** so the Adapt panel works on blueprints >500KB
+- **MCP-aware retrieval boost** — weight `make_description` higher for MCP-created scenarios
+- **Per-user Make tokens** replacing the shared `MAKE_API_TOKEN`
+- **Eval set** — automated quality bar for prompt-version changes
+- **Sentry, Slack bot, daily summary cron** — ops/distribution plays for once testers validate the core loop
 
 ---
 
 ## Contributing
 
-If you're an engineer extending this repo, read `AGENTS.md` first — it captures the operating rules (when to update which doc, the "always end with a test plan" rule, etc.). Then check `DECISIONS.md` for the locked architectural choices and `PLAN.md` / `TASKS.md` for what's actually in flight.
+If you're extending this repo, read `AGENTS.md` first — it captures the operating rules (when to update which doc, the "always end with a test plan" rule, release discipline). Then check `DECISIONS.md` for the locked architectural choices and `PLAN.md` / `TASKS.md` for what's actually in flight.
 
-All design rationale and the why-not behind alternatives lives in `DECISIONS.md`. The historical Build-Brief + AI-Architecture (pre-implementation specs) are archived in `docs/archive/`.
+All design rationale and the why-not behind alternatives lives in `DECISIONS.md`. The historical pre-implementation specs are archived in `docs/archive/`.
 
 ---
 
