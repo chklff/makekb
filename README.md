@@ -73,8 +73,8 @@ Six steps. ~20 minutes total.
 ### 1. Clone + install
 
 ```bash
-git clone <this-repo> scenario-kb
-cd scenario-kb
+git clone  https://github.com/chklff/makekb makekb
+cd makekb
 pnpm install
 ```
 
